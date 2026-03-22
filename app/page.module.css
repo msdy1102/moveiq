@@ -232,3 +232,65 @@
 .footerLinks a { font-size: 12px; color: rgba(255,255,255,.6); text-decoration: none; transition: color .2s; }
 .footerLinks a:hover { color: #fff; }
 .footerCopy { font-size: 11px; color: rgba(255,255,255,.35); border-top: 1px solid rgba(255,255,255,.1); padding-top: 20px; }
+
+/* ── 추가 클래스 ── */
+/* 사이드바 폭 고정 — full 클래스 제거로 항상 400px */
+/* mainContent: 소음지도 탭에서만 표시 */
+.mainContent { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.mainContentHidden { display:none; }
+
+/* 예시 배지 */
+.sampleBadge {
+  background: rgba(100,111,75,.08); border: 1px solid rgba(100,111,75,.2);
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;
+  font-size: 12px; color: var(--muted); line-height: 1.5;
+}
+
+/* 위치 로딩 */
+.locLoading { font-size: 13px; color: var(--main); font-weight: 600; }
+
+/* 소음 통계 박스 */
+.noiseStatBox { background: var(--bg2); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--border); }
+.noiseStatRow { display:flex; justify-content:space-between; align-items:center; font-size: 12px; padding: 4px 0; }
+.noiseStatRow span { color: var(--muted); }
+.noiseStatRow strong { font-family: 'Space Mono', monospace; font-size: 13px; }
+
+/* Kakao 지도 */
+.mapPlaceholder { flex:1; min-height:380px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; background:#e8ede5; font-size:14px; color:var(--muted); }
+.kakaoMapEl { flex:1; min-height:380px; width:100%; }
+
+/* 준비중 배너 */
+.comingSoonBanner {
+  background: rgba(100,111,75,.08); border: 1px solid rgba(100,111,75,.2);
+  border-radius: 10px; padding: 14px 20px; margin-bottom: 24px;
+  font-size: 13px; color: var(--main); font-weight: 600; text-align: center;
+}
+
+/* 비활성화 버튼 */
+.priceBtnDisabled {
+  width:100%; padding:11px; border-radius:8px; cursor:not-allowed;
+  font-size:13px; font-weight:700; border:1px solid var(--border);
+  background:var(--bg3); color:var(--muted); opacity:0.6;
+}
+
+/* B2B 준비중 배너 */
+.b2bComingSoon {
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;
+  font-size: 12px; color: var(--sub);
+}
+
+/* 푸터 링크 버튼 */
+.footerLinkBtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; color: rgba(255,255,255,.6); transition: color .2s;
+  text-decoration: none; padding: 0; font-family: inherit;
+}
+.footerLinkBtn:hover { color: #fff; }
+
+/* 페이지 모달 본문 */
+.pageContent {
+  font-family: 'Noto Sans KR', sans-serif; font-size: 13px; line-height: 1.8;
+  color: var(--text2); white-space: pre-wrap; word-break: keep-all;
+  max-height: 60vh; overflow-y: auto;
+}
