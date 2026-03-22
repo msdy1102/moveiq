@@ -152,7 +152,7 @@ function KakaoMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
     if (document.getElementById('kakao-sdk')) { init(); return; }
     const s = document.createElement('script');
     s.id  = 'kakao-sdk';
-    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&autoload=false`;
+    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
     s.onload = init;
     document.head.appendChild(s);
   }, [lat, lng, loading]);
@@ -177,10 +177,11 @@ export default function HomePage() {
   const [reportOpen,   setReportOpen]   = useState(false);
   const [reportOk,     setReportOk]     = useState(false);
   const [pageModal,    setPageModal]    = useState<string|null>(null);
-  const [mapView,      setMapView]      = useState<'pin'|'heat'>('pin');
-  const [userLat,      setUserLat]      = useState<number|null>(null);
-  const [userLng,      setUserLng]      = useState<number|null>(null);
-  const [locLoading,   setLocLoading]   = useState(false);
+  const [mapView,           setMapView]           = useState<'pin'|'heat'>('pin');
+  const [userLat,           setUserLat]           = useState<number|null>(null);
+  const [userLng,           setUserLng]           = useState<number|null>(null);
+  const [locLoading,        setLocLoading]        = useState(false);
+  const [noiseSearchInput,  setNoiseSearchInput]  = useState('');
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
@@ -194,6 +195,36 @@ export default function HomePage() {
       () => { setUserLat(37.5665); setUserLng(126.9780); setLocLoading(false); },
       { timeout: 8000 }
     );
+  }
+
+  // 소음 지도 주소 검색 (Kakao 지오코딩)
+  function searchNoiseLocation() {
+    const addr = noiseSearchInput.trim();
+    if (!addr) return;
+    const key = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+    if (!key) return;
+    const doSearch = () => {
+      const k = (window as any).kakao;
+      if (!k?.maps?.services) return;
+      const geocoder = new k.maps.services.Geocoder();
+      geocoder.addressSearch(addr, (result: any[], status: string) => {
+        if (status === k.maps.services.Status.OK && result.length > 0) {
+          const lat = parseFloat(result[0].y);
+          const lng = parseFloat(result[0].x);
+          setUserLat(lat);
+          setUserLng(lng);
+          setLocLoading(false);
+        } else {
+          alert('주소를 찾을 수 없습니다. 다시 확인해 주세요.');
+        }
+      });
+    };
+    if (document.getElementById('kakao-sdk')) { doSearch(); return; }
+    const s = document.createElement('script');
+    s.id  = 'kakao-sdk';
+    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
+    s.onload = () => { (window as any).kakao.maps.load(doSearch); };
+    document.head.appendChild(s);
   }
 
   async function runAnalysis(addr?: string) {
@@ -287,14 +318,14 @@ export default function HomePage() {
 
       {/* ── APP ── */}
       <div className={styles.app}>
-        {/* 3. 사이드바 폭 항상 고정 (full 클래스 없음) */}
-        <aside className={styles.sidebar}>
 
-          {/* 입지 분석 패널 */}
-          {tab==='search' && (
-            <div className={styles.sidebarContent}>
-              <div className={styles.searchRow}>
-                <input id="mainInput" className={styles.bigInput} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&runAnalysis()} placeholder="예: 마포구 성산동, 강남구 역삼동"/>
+        {/* ── 입지 분석 탭: 전체 너비 중앙 레이아웃 ── */}
+        {tab==='search' && (
+          <div className={styles.analysisPage}>
+            <div className={styles.analysisInner}>
+              {/* 검색 */}
+              <div className={styles.searchRowCenter}>
+                <input id="mainInput" className={styles.bigInputCenter} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&runAnalysis()} placeholder="예: 마포구 성산동, 강남구 역삼동"/>
                 <button className={styles.btnAnalyze} onClick={()=>runAnalysis()}>분석</button>
               </div>
               <div className={styles.quickChips}>
@@ -318,10 +349,9 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* 1·2. 예시 or 실제 결과 */}
+              {/* 결과 */}
               {!loading && (
-                <div className={styles.resultBox}>
-                  {/* 1. 예시 배지 */}
+                <div className={styles.resultBoxCenter}>
                   {!result && (
                     <div className={styles.sampleBadge}>
                       📋 예시 데이터 — 주소를 입력하면 실제 AI 분석 결과가 표시됩니다
@@ -344,7 +374,7 @@ export default function HomePage() {
 
                   {rTab==='overview' && (
                     <>
-                      <div className={styles.scoreGrid}>
+                      <div className={styles.scoreGridCenter}>
                         {LAYERS.map(l=>(
                           <div key={l.name} className={styles.scoreCard}>
                             <div className={styles.scLabel}>{l.icon} {l.name}</div>
@@ -355,12 +385,14 @@ export default function HomePage() {
                       </div>
                       <div className={styles.aiBox}><span>🤖</span><p>{D.ai_comment}</p></div>
                       <div className={styles.compareTitle}>📍 비슷한 조건의 대안 지역</div>
-                      {D.alternatives.map(a=>(
-                        <div key={a.name} className={styles.compareItem}>
-                          <div><div className={styles.compareName}>📍 {a.name}</div><div className={styles.compareNote}>{a.note}</div></div>
-                          <span className={styles.compareScore}>{a.score}점</span>
-                        </div>
-                      ))}
+                      <div className={styles.compareGridCenter}>
+                        {D.alternatives.map(a=>(
+                          <div key={a.name} className={styles.compareItem}>
+                            <div><div className={styles.compareName}>📍 {a.name}</div><div className={styles.compareNote}>{a.note}</div></div>
+                            <span className={styles.compareScore}>{a.score}점</span>
+                          </div>
+                        ))}
+                      </div>
                       <div className={styles.pdfCta}>
                         <div><strong>풀 리포트 PDF 저장</strong><small>6개 레이어 + 비교 3곳 + AI 평가</small></div>
                         <button className={styles.btnPdf}>📄 4,900원</button>
@@ -392,31 +424,47 @@ export default function HomePage() {
                 </div>
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* 소음 지도 사이드 패널 */}
-          {tab==='noise' && (
-            <div className={styles.sidebarContent}>
-              <div className={styles.noiseSummary}>
-                <div className={styles.noiseSummaryTitle}>🔊 실시간 소음 지도</div>
-                {locLoading
-                  ? <p className={styles.locLoading}>📍 현재 위치 확인 중...</p>
-                  : <p>현재 위치 기준 소음 제보 현황입니다.<br/>핀을 클릭해 상세 정보를 확인하세요.</p>
-                }
+        {/* ── 소음 지도 탭: 사이드 + 지도 ── */}
+        {tab==='noise' && (
+        <aside className={styles.sidebar}>
+          <div className={styles.sidebarContent}>
+            {/* 소음 지도 검색 */}
+            <div className={styles.noiseSearchSection}>
+              <div className={styles.noiseSummaryTitle}>🔍 소음 지도 검색</div>
+              <div className={styles.noiseSearchRow}>
+                <input
+                  className={styles.noiseSearchInput}
+                  value={noiseSearchInput}
+                  onChange={e=>setNoiseSearchInput(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&searchNoiseLocation()}
+                  placeholder="주소 입력 (예: 마포구 성산동)"
+                />
+                <button className={styles.btnNoiseSearch} onClick={searchNoiseLocation}>검색</button>
               </div>
-              <div className={styles.noiseStatBox}>
-                {[['🎵 유흥 소음','147건','#111'],['🏗️ 공사 소음','23건','var(--main)'],['🚗 교통 소음','18건','var(--sub)'],['🏠 층간소음','11건','var(--sub)']].map(([l,v,c])=>(
-                  <div key={l} className={styles.noiseStatRow}><span>{l}</span><strong style={{color:c as string}}>{v}</strong></div>
-                ))}
-              </div>
-              <button className={styles.btnSubmitFull} onClick={()=>setReportOpen(true)}>+ 소음 제보하기</button>
-              <button className={styles.btnSecondaryFull} onClick={()=>setTab('search')}>🏙️ 이 지역 입지 분석 →</button>
             </div>
-          )}
-        </aside>
 
-        {/* 우측 콘텐츠 */}
-        <div className={`${styles.mainContent} ${tab==='search'?styles.mainContentHidden:''}`}>
+            <div className={styles.noiseSummary}>
+              <div className={styles.noiseSummaryTitle}>🔊 실시간 소음 지도</div>
+              {locLoading
+                ? <p className={styles.locLoading}>📍 현재 위치 확인 중...</p>
+                : <p>현재 위치 기준 소음 제보 현황입니다.<br/>핀을 클릭해 상세 정보를 확인하세요.</p>
+              }
+            </div>
+            <div className={styles.noiseStatBox}>
+              {[['🎵 유흥 소음','147건','#111'],['🏗️ 공사 소음','23건','var(--main)'],['🚗 교통 소음','18건','var(--sub)'],['🏠 층간소음','11건','var(--sub)']].map(([l,v,c])=>(
+                <div key={l} className={styles.noiseStatRow}><span>{l}</span><strong style={{color:c as string}}>{v}</strong></div>
+              ))}
+            </div>
+            <button className={styles.btnSubmitFull} onClick={()=>setReportOpen(true)}>+ 소음 제보하기</button>
+          </div>
+        </aside>
+        )}
+
+        {/* 우측 콘텐츠 (소음 탭에서만 표시) */}
+        <div className={`${styles.mainContent} ${tab!=='noise'?styles.mainContentHidden:''}`}>
           {tab==='noise' && (
             <div className={styles.mapArea}>
               <div className={styles.mapToolbar}>
