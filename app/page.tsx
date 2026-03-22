@@ -469,6 +469,123 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* ── 핵심 기능 ── */}
+      <section className={styles.featuresSection} id="features">
+        <div className={styles.sectionInner}>
+          <div className={styles.secLabel}>핵심 기능</div>
+          <h2 className={styles.secTitle}>이사 결정에 필요한<br />모든 데이터</h2>
+          <div className={styles.featGrid}>
+            {[
+              { icon:'🔊', title:'소음 크라우드 지도',    desc:'층간·공사·유흥·교통 소음을 시간대별로 확인. 핀 뷰와 히트맵 뷰 전환 가능.' },
+              { icon:'🤖', title:'AI 입지 분석 리포트',   desc:'교통·학군·인프라·소음·상권·개발 6개 레이어를 Claude AI가 종합 분석해 점수와 코멘트 제공.' },
+              { icon:'📊', title:'레이더 차트 스코어카드', desc:'6개 항목을 레이더 차트와 바 그래프로 시각화. 비슷한 조건의 대안 지역 3곳 비교.' },
+              { icon:'🔔', title:'스마트 알림',            desc:'관심 주소 반경 500m 내 새 소음 제보, 공사 허가, 입지 점수 변동 시 즉시 알림.' },
+              { icon:'📋', title:'민원 원클릭 가이드',     desc:'층간·공사·유흥 소음 유형별 신고 절차와 담당 기관을 주소 기반으로 자동 연결.' },
+              { icon:'📄', title:'PDF 리포트 저장',        desc:'풀 리포트를 PDF로 저장해 부동산 계약 전 참고 자료로 활용하거나 공인중개사와 공유.' },
+            ].map(f => (
+              <div key={f.title} className={styles.featCard}>
+                <div className={styles.featIcon}>{f.icon}</div>
+                <div className={styles.featTitle}>{f.title}</div>
+                <div className={styles.featDesc}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 요금제 ── */}
+      <section className={styles.pricingSection} id="pricing">
+        <div className={styles.sectionInner}>
+          <div style={{ textAlign:'center', maxWidth:520, margin:'0 auto 40px' }}>
+            <div className={styles.secLabel} style={{ textAlign:'center' }}>요금제</div>
+            <h2 className={styles.secTitle}>이사 전 가장 중요한 투자</h2>
+            <p className={styles.secDesc} style={{ textAlign:'center', marginTop:8 }}>한 번의 잘못된 이사가 수개월의 스트레스보다 더 비쌉니다.</p>
+          </div>
+          <div className={styles.pricingGrid}>
+            {[
+              {
+                plan:'무료', price:'0', unit:'원', desc:'소음 지도 + 기본 분석',
+                feats:['소음 지도 열람·제보 무제한','입지 분석 일 3회','6개 레이어 기본 보기','민원 가이드 이용'],
+                btnTxt:'무료 시작', primary:false, badge:false,
+              },
+              {
+                plan:'이사 플랜', price:'4,900', unit:'원/건', desc:'이사 결정 1회용 완전 리포트',
+                feats:['특정 주소 풀 리포트','PDF 다운로드','비교 지역 3곳 분석','AI 상세 코멘트'],
+                btnTxt:'지금 분석하기', primary:true, badge:'인기',
+              },
+              {
+                plan:'월정액', price:'14,900', unit:'원/월', desc:'청약·투자 준비자',
+                feats:['무제한 분석·비교','실시간 알림','분석 히스토리 30개','이사 예정지 모니터링'],
+                btnTxt:'구독하기', primary:false, badge:false,
+              },
+              {
+                plan:'프리미엄', price:'29,900', unit:'원/월', desc:'완전한 이사 결정 패키지',
+                feats:['월정액 전체 포함','민원 자동 가이드','주간 리포트 이메일','전문가 상담 1회'],
+                btnTxt:'구독하기', primary:false, badge:false,
+              },
+            ].map(p => (
+              <div key={p.plan} className={`${styles.priceCard} ${p.primary ? styles.priceCardFeatured : ''}`}>
+                {p.badge && <div className={styles.priceBadge}>{p.badge}</div>}
+                <div className={styles.pricePlan}>{p.plan}</div>
+                <div className={styles.priceNum}>{p.price}<span className={styles.priceUnit}>{p.unit}</span></div>
+                <div className={styles.priceDesc}>{p.desc}</div>
+                <ul className={styles.priceFeats}>
+                  {p.feats.map(f => <li key={f}>{f}</li>)}
+                </ul>
+                <button className={p.primary ? styles.priceBtnMain : styles.priceBtnSub}>{p.btnTxt}</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── B2B API ── */}
+      <section className={styles.b2bSection} id="b2b">
+        <div className={styles.b2bInner}>
+          <div className={styles.b2bLeft}>
+            <div className={styles.b2bLabel}>B2B API</div>
+            <h2 className={styles.b2bTitle}>직방·다방·건설사·지자체를 위한<br />입지 분석 API</h2>
+            <p className={styles.b2bDesc}>매물별 입지 점수 API 납품, 공인중개사 플랫폼 연동, 지자체 소음 민원 대시보드 등 다양한 B2B 협업을 논의해 드립니다.</p>
+            <a href="mailto:admin@moveiq.co.kr" className={styles.b2bBtn}>✉️ 관리자에게 문의하기</a>
+          </div>
+          <div className={styles.b2bCards}>
+            {[
+              { icon:'🏢', title:'부동산 플랫폼',     desc:'직방·다방·부동산114 — 입지 분석 API 납품' },
+              { icon:'🔑', title:'공인중개사 플랫폼', desc:'매물별 입지 점수 연동 — 건당 과금 모델' },
+              { icon:'🏗️', title:'건설사·시행사',     desc:'분양 전 입지 분석 리포트 — 프로젝트별' },
+              { icon:'🏛️', title:'지자체',            desc:'소음 민원 집계 대시보드 — 연간 계약' },
+            ].map(c => (
+              <div key={c.title} className={styles.b2bCard}>
+                <span className={styles.b2bCardIcon}>{c.icon}</span>
+                <div>
+                  <div className={styles.b2bCardTitle}>{c.title}</div>
+                  <div className={styles.b2bCardDesc}>{c.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 푸터 ── */}
+      <footer className={styles.footer}>
+        <div className={styles.footerInner}>
+          <div className={styles.footerTop}>
+            <div>
+              <div className={styles.footerLogo}>📍 MoveIQ</div>
+              <p className={styles.footerTagline}>이사 후 "알았다면 안 왔을 텐데"라는 말이<br />사라지는 세상을 만든다</p>
+            </div>
+            <div className={styles.footerLinks}>
+              {['서비스 소개','개인정보처리방침','이용약관','공지사항'].map(l => (
+                <a key={l} href="#">{l}</a>
+              ))}
+              <a href="mailto:admin@moveiq.co.kr">B2B 문의</a>
+            </div>
+          </div>
+          <div className={styles.footerCopy}>© 2025 MoveIQ. All rights reserved.</div>
+        </div>
+      </footer>
     </>
   );
 }
