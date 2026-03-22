@@ -273,14 +273,22 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── 메인 탭 바 — 전체 너비 중앙 고정 ── */}
+      <nav className={styles.mainTabBar}>
+        <div className={styles.mainTabInner}>
+          <button className={`${styles.mainTab} ${tab==='search'?styles.active:''}`} onClick={()=>setTab('search')}>
+            🏙️ 입지 분석
+          </button>
+          <button className={`${styles.mainTab} ${tab==='noise'?styles.active:''}`} onClick={goNoise}>
+            🔊 소음 지도
+          </button>
+        </div>
+      </nav>
+
       {/* ── APP ── */}
       <div className={styles.app}>
         {/* 3. 사이드바 폭 항상 고정 (full 클래스 없음) */}
         <aside className={styles.sidebar}>
-          <div className={styles.sidebarTabs}>
-            <button className={`${styles.sidebarTab} ${tab==='search'?styles.active:''}`} onClick={()=>setTab('search')}>🏙️ 입지 분석</button>
-            <button className={`${styles.sidebarTab} ${tab==='noise'?styles.active:''}`}  onClick={goNoise}>🔊 소음 지도</button>
-          </div>
 
           {/* 입지 분석 패널 */}
           {tab==='search' && (
