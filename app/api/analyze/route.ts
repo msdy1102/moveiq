@@ -1,23 +1,16 @@
 // app/api/analyze/route.ts
-// ────────────────────────────────────────────────────────────
-// Claude API는 여기서만 호출됩니다. 브라우저에서 직접 호출 불가.
-// Rate Limit: IP당 10분에 5회
-// ────────────────────────────────────────────────────────────
-
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { rateLimit } from '@/lib/rate-limit';
 import { apiError } from '@/lib/error-handler';
 import { createServiceClient } from '@/lib/supabase';
 
-const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
-
-// 플랜별 금액 기준표 — 서버에서만 관리 (프론트 전달 금액 신뢰 금지)
-const PLAN_PRICES = {
-  move_plan_single: 4900,
-  monthly_basic:   14900,
-  monthly_premium: 29900,
-} as const;
+// 빌드 시점 즉시 실행 방지 — 런타임에 lazy 생성
+function getAnthropic() {
+  const key = process.env.CLAUDE_API_KEY;
+  if (!key) throw new Error('CLAUDE_API_KEY 환경변수가 설정되지 않았습니다.');
+  return new Anthropic({ apiKey: key });
+}
 
 export async function POST(req: NextRequest) {
   // 1. Rate Limit 확인
@@ -150,7 +143,7 @@ async function runClaudeAnalysis(address: string, facilities: Record<string, num
   ]
 }`;
 
-  const message = await anthropic.messages.create({
+  const message = await getAnthropic().messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1500,
     messages: [{ role: 'user', content: prompt }],
