@@ -1,0 +1,25 @@
+/* globals.css — MoveIQ 전역 스타일 */
+:root {
+  --main:      #646F4B;
+  --sub:       #BFD2BF;
+  --sub-light: rgba(191,210,191,0.18);
+  --bg:        #ffffff;
+  --bg2:       #f5f7f3;
+  --bg3:       #edf1eb;
+  --text:      #111111;
+  --text2:     #444;
+  --muted:     #6b7260;
+  --border:    rgba(100,111,75,0.14);
+  --r:         12px;
+  --header-h:  60px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+button, input, textarea, select { font-family: inherit; }

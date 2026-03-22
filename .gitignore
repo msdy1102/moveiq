@@ -1,0 +1,29 @@
+# 환경변수 — 절대 커밋 금지
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Next.js 빌드
+.next/
+out/
+build/
+dist/
+
+# 의존성
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# 로그
+*.log
+npm-debug.log*
+
+# 소스맵 (운영 배포 시 노출 방지)
+*.js.map
