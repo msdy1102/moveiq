@@ -38,8 +38,18 @@ export async function POST(req: NextRequest) {
     return apiError('INVALID_INPUT', 400, '금액 불일치');
   }
 
-  // 3. 중복 처리 방지
+  // 3. user_id 추출 (Supabase Auth JWT에서)
   const supabase = createServiceClient();
+  const authHeader = req.headers.get('authorization');
+  let userId: string | null = null;
+
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const { data: { user } } = await supabase.auth.getUser(token);
+    userId = user?.id ?? null;
+  }
+
+  // 4. 중복 처리 방지
   const { data: existing } = await supabase
     .from('payments')
     .select('id')
@@ -50,7 +60,7 @@ export async function POST(req: NextRequest) {
     return apiError('INVALID_INPUT', 400, '이미 처리된 주문');
   }
 
-  // 4. 토스페이먼츠 승인 API 호출
+  // 5. 토스페이먼츠 승인 API 호출
   try {
     const tossRes = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
       method: 'POST',
@@ -68,12 +78,13 @@ export async function POST(req: NextRequest) {
 
     const tossData = await tossRes.json();
 
-    // 5. DB에 결제 기록 저장 (트랜잭션)
+    // 6. DB에 결제 기록 저장 (user_id 포함)
     const { error: dbErr } = await supabase.from('payments').insert({
       order_id:    orderId,
       payment_key: paymentKey,
+      user_id:     userId,       // ✅ user_id 저장
       plan_code:   planCode,
-      amount:      expectedAmount, // 서버 기준값만 저장
+      amount:      expectedAmount,
       status:      'paid',
       toss_data:   tossData,
       paid_at:     new Date().toISOString(),

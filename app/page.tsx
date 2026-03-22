@@ -38,6 +38,10 @@ export default function HomePage() {
   const [reportModal,  setReportModal]  = useState(false);
   const [reportSuccess,setReportSuccess]= useState(false);
   const [mapView,      setMapView]      = useState<'pin' | 'heat'>('pin');
+  const [errorMsg,     setErrorMsg]     = useState<string | null>(null);
+  // 제보 위치: 실제 지도 핀 연동 전까지 서울 중심 기본값 사용 (추후 Kakao Maps 연동으로 교체)
+  const [reportLat,    setReportLat]    = useState(37.5665);
+  const [reportLng,    setReportLng]    = useState(126.9780);
 
   const STEPS = [
     '교통 데이터 수집 중...',
@@ -74,12 +78,13 @@ export default function HomePage() {
       if (json.success) {
         setResult(json.data);
         setResultTab('overview');
+        setErrorMsg(null);
       } else {
-        alert(json.message ?? '분석에 실패했습니다.');
+        setErrorMsg(json.message ?? '분석에 실패했습니다.');
       }
     } catch {
       clearInterval(iv);
-      alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+      setErrorMsg('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -99,16 +104,16 @@ export default function HomePage() {
           noise_type:  data.get('noise_type'),
           time_slot:   data.get('time_slot'),
           severity:    Number(data.get('severity')),
-          lat:         37.5665 + (Math.random() - 0.5) * 0.05, // 실제: 지도 핀 좌표
-          lng:        126.9780 + (Math.random() - 0.5) * 0.05,
+          lat:         reportLat,
+          lng:         reportLng,
           description: data.get('description'),
         }),
       });
       const json = await res.json();
       if (json.success) setReportSuccess(true);
-      else alert(json.message);
+      else setErrorMsg(json.message ?? '제보 저장에 실패했습니다.');
     } catch {
-      alert('제보 저장에 실패했습니다. 다시 시도해주세요.');
+      setErrorMsg('제보 저장에 실패했습니다. 다시 시도해주세요.');
     }
   }
 
@@ -220,6 +225,14 @@ export default function HomePage() {
                   <button key={addr} className={styles.chip} onClick={() => runAnalysis(addr)}>{addr}</button>
                 ))}
               </div>
+
+              {/* 에러 메시지 */}
+              {errorMsg && !loading && (
+                <div style={{ background: '#fee', border: '1px solid #fcc', borderRadius: 8, padding: '12px 16px', marginTop: 12, color: '#c00', fontSize: 14 }}>
+                  ⚠️ {errorMsg}
+                  <button onClick={() => setErrorMsg(null)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#c00' }}>✕</button>
+                </div>
+              )}
 
               {/* 로딩 */}
               {loading && (

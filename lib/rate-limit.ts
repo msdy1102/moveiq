@@ -29,7 +29,7 @@ export function rateLimit(ip: string, opts: RateLimitOptions): boolean {
 // 오래된 항목 주기적 정리 (메모리 누수 방지)
 setInterval(() => {
   const now = Date.now();
-  for (const [key, val] of store.entries()) {
+  store.forEach((val, key) => {
     if (now > val.resetAt) store.delete(key);
-  }
+  });
 }, 60_000);
