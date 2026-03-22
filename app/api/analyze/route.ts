@@ -90,9 +90,8 @@ async function fetchKakaoFacilities(address: string) {
 
   for (const cat of categories) {
     try {
-      // 키워드 검색으로 주소 기반 시설 수집
       const res = await fetch(
-        `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(address + ' ' + cat.label)}&size=15`,
+        `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=${cat.code}&query=${encodeURIComponent(address)}&radius=1000&size=15`,
         { headers: { Authorization: `KakaoAK ${kakaoKey}` } }
       );
       const data = await res.json();
@@ -152,7 +151,7 @@ async function runClaudeAnalysis(address: string, facilities: Record<string, num
 }`;
 
   const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-20250514',
     max_tokens: 1500,
     messages: [{ role: 'user', content: prompt }],
   });
