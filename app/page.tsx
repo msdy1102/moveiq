@@ -42,7 +42,7 @@ const SAMPLE: AnalysisResult = {
 const PAGES: Record<string, { title: string; body: string }> = {
   '서비스 소개': {
     title: '서비스 소개',
-    body: `MoveIQ는 소음 크라우드 지도와 AI 입지 분석을 결합한 이사 결정 플랫폼입니다.
+    body: `무브IQ는 소음 크라우드 지도와 AI 입지 분석을 결합한 이사 결정 플랫폼입니다.
 
 ■ 핵심 기능
 • 소음 크라우드 지도: 층간·공사·유흥·교통 소음 시간대별 확인
@@ -59,7 +59,7 @@ admin@moveiq.co.kr`,
   },
   '개인정보처리방침': {
     title: '개인정보처리방침',
-    body: `MoveIQ는 이용자의 개인정보를 중요시하며 개인정보보호법을 준수합니다.
+    body: `무브IQ는 이용자의 개인정보를 중요시하며 개인정보보호법을 준수합니다.
 
 ■ 수집하는 개인정보
 • 소음 제보 시: 제보 위치(50m 반경 랜덤화 처리), IP 주소(어뷰징 방지)
@@ -82,7 +82,7 @@ admin@moveiq.co.kr`,
   '이용약관': {
     title: '이용약관',
     body: `■ 제1조 (목적)
-본 약관은 MoveIQ(이하 "서비스")의 이용 조건 및 절차에 관한 사항을 규정합니다.
+본 약관은 무브IQ(이하 "서비스")의 이용 조건 및 절차에 관한 사항을 규정합니다.
 
 ■ 제2조 (서비스 제공)
 서비스는 소음 크라우드 지도, AI 입지 분석 정보를 제공합니다. 제공되는 정보는 참고용이며, 최종 이사 결정의 책임은 이용자에게 있습니다.
@@ -102,11 +102,11 @@ admin@moveiq.co.kr`,
   },
   '공지사항': {
     title: '공지사항',
-    body: `■ [2025.03] MoveIQ 베타 서비스 오픈
+    body: `■ [2025.03] 무브IQ 베타 서비스 오픈
 
-안녕하세요, MoveIQ팀입니다.
+안녕하세요, 무브IQ팀입니다.
 
-소음 크라우드 지도 × AI 입지 분석 플랫폼 MoveIQ가 베타 서비스를 시작합니다.
+소음 크라우드 지도 × AI 입지 분석 플랫폼 무브IQ가 베타 서비스를 시작합니다.
 
 ▶ 베타 기간 중 무료 제공
 • 소음 지도 열람 및 제보 무제한
@@ -120,7 +120,7 @@ admin@moveiq.co.kr`,
 
 서비스 이용 중 불편 사항이나 개선 의견은 admin@moveiq.co.kr 로 보내주세요.
 
-감사합니다. MoveIQ팀 드림`,
+감사합니다. 무브IQ팀 드림`,
   },
 };
 
@@ -272,13 +272,13 @@ export default function HomePage() {
     <>
       {/* ── HEADER ── */}
       <header className={styles.header}>
-        <a className={styles.logo} href="/"><div className={styles.logoMark}>📍</div><span className={styles.logoText}>MoveIQ</span></a>
+        <a className={styles.logo} href="/"><div className={styles.logoMark}>📍</div><span className={styles.logoText}>무브IQ</span></a>
         <div className={styles.headerSearch}>
           <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&runAnalysis()} placeholder="주소 검색 (예: 마포구 성산동)" />
           <button onClick={()=>runAnalysis()}>→</button>
         </div>
         {/* 5. 헤더 탭 버튼 제거 */}
-        <button className={styles.btnReport} onClick={()=>setReportOpen(true)}>+ 소음 제보</button>
+        <button className={styles.btnLogin}>로그인</button>
       </header>
 
       {/* ── HERO ── */}
@@ -300,21 +300,14 @@ export default function HomePage() {
               <div className={styles.ctaTitle}>소음 지도 보기</div>
               <div className={styles.ctaDesc}>크라우드 소음 제보를 시간대별로 확인</div>
             </div>
+            <div className={styles.ctaCard} onClick={()=>window.location.href='/community'}>
+              <div className={styles.ctaIcon}>💬</div>
+              <div className={styles.ctaTitle}>소통하기</div>
+              <div className={styles.ctaDesc}>동네 주민과 이사 정보 나누기</div>
+            </div>
           </div>
         </div>
       </section>
-
-      {/* ── 메인 탭 바 — 전체 너비 중앙 고정 ── */}
-      <nav className={styles.mainTabBar}>
-        <div className={styles.mainTabInner}>
-          <button className={`${styles.mainTab} ${tab==='search'?styles.active:''}`} onClick={()=>setTab('search')}>
-            🏙️ 입지 분석
-          </button>
-          <button className={`${styles.mainTab} ${tab==='noise'?styles.active:''}`} onClick={goNoise}>
-            🔊 소음 지도
-          </button>
-        </div>
-      </nav>
 
       {/* ── APP ── */}
       <div className={styles.app}>
@@ -553,7 +546,7 @@ export default function HomePage() {
             <h2 className={styles.b2bTitle}>직방·다방·건설사·지자체를 위한<br/>입지 분석 API</h2>
             <p className={styles.b2bDesc}>매물별 입지 점수 API 납품, 공인중개사 플랫폼 연동, 지자체 소음 민원 대시보드 등 다양한 B2B 협업을 준비 중입니다.</p>
             <div className={styles.b2bComingSoon}>🔧 서비스 준비 중 — 사전 문의는 이메일로 받고 있습니다</div>
-            <a href="mailto:admin@moveiq.co.kr" className={styles.b2bBtn}>✉️ 사전 문의하기</a>
+            <a href="mailto:zntk660202@gmail.com" className={styles.b2bBtn}>✉️ 사전 문의하기</a>
           </div>
           <div className={styles.b2bCards}>
             {[
@@ -576,7 +569,7 @@ export default function HomePage() {
         <div className={styles.footerInner}>
           <div className={styles.footerTop}>
             <div>
-              <div className={styles.footerLogo}>📍 MoveIQ</div>
+              <div className={styles.footerLogo}>📍 무브IQ</div>
               <p className={styles.footerTagline}>이사 후 "알았다면 안 왔을 텐데"라는 말이<br/>사라지는 세상을 만든다</p>
             </div>
             {/* 7. 실제 동작하는 푸터 링크 */}
@@ -587,7 +580,7 @@ export default function HomePage() {
               <a href="mailto:admin@moveiq.co.kr" className={styles.footerLinkBtn}>B2B 문의</a>
             </div>
           </div>
-          <div className={styles.footerCopy}>© 2025 MoveIQ. All rights reserved.</div>
+          <div className={styles.footerCopy}>© 2025 무브IQ. All rights reserved.</div>
         </div>
       </footer>
 

@@ -28,6 +28,8 @@
 .headerNav button.active { font-weight: 700; }
 .btnReport { background: var(--main); color: #fff; border: none; cursor: pointer; font-size: 13px; font-weight: 700; padding: 8px 16px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
 .btnReport:hover { background: #000; }
+.btnLogin { background: none; color: var(--main); border: 1.5px solid var(--main); cursor: pointer; font-size: 13px; font-weight: 700; padding: 7px 18px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; transition: all .2s; }
+.btnLogin:hover { background: var(--main); color: #fff; }
 
 /* ── HERO ── */
 .hero { margin-top: var(--header-h); background: var(--main); padding: 64px 24px 0; position: relative; overflow: hidden; }
