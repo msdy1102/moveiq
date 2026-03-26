@@ -786,6 +786,38 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* ── 모바일 하단 네비게이션 ── */}
+      <nav className={styles.mobileNav}>
+        <button
+          className={`${styles.mobileNavBtn} ${tab==='search'?styles.mobileNavActive:''}`}
+          onClick={()=>setTab('search')}
+        >
+          <span className={styles.mobileNavIcon}>🏙️</span>
+          입지 분석
+        </button>
+        <button
+          className={`${styles.mobileNavBtn} ${tab==='noise'?styles.mobileNavActive:''}`}
+          onClick={goNoise}
+        >
+          <span className={styles.mobileNavIcon}>🔊</span>
+          소음 지도
+        </button>
+        <button
+          className={styles.mobileNavBtn}
+          onClick={()=>setReportOpen(true)}
+        >
+          <span className={styles.mobileNavIcon}>📝</span>
+          소음 제보
+        </button>
+        <button
+          className={styles.mobileNavBtn}
+          onClick={()=>window.location.href='/community'}
+        >
+          <span className={styles.mobileNavIcon}>💬</span>
+          소통하기
+        </button>
+      </nav>
     </>
   );
 }

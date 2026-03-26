@@ -406,3 +406,195 @@
   color: var(--text2); white-space: pre-wrap; word-break: keep-all;
   max-height: 60vh; overflow-y: auto;
 }
+
+/* ════════════════════════════════════════════════════════════
+   모바일 반응형 (768px 이하)
+   참고: 직방·호갱노노·카카오맵 모바일 UX 패턴
+   - 헤더: 검색창 숨김 → 아이콘만
+   - 히어로: 패딩 축소, CTA 세로 배치
+   - 입지 분석: 풀스크린 단일 컬럼
+   - 소음 지도: 지도 전체화면 + 하단 시트
+   - 하단 네비게이션 바 추가
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 모바일 하단 네비게이션 ── */
+.mobileNav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  /* 헤더 개선 */
+  .header {
+    padding: 0 16px;
+    gap: 10px;
+    height: 56px;
+  }
+  .headerSearch {
+    flex: 1;
+    max-width: none;
+    padding: 5px 12px;
+  }
+  .headerSearch input { font-size: 13px; }
+  .btnLogin { display: none; } /* 모바일에서 로그인 버튼 숨김 */
+
+  /* 히어로 */
+  .hero {
+    padding: 32px 16px 0;
+    margin-top: 56px;
+  }
+  .heroBadge { font-size: 11px; margin-bottom: 14px; }
+  .hero h1 { font-size: 28px; margin-bottom: 10px; }
+  .hero p  { font-size: 14px; margin-bottom: 24px; }
+  .heroCtas {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+  .ctaCard {
+    min-width: unset;
+    padding: 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+  .ctaIcon { font-size: 20px; margin-bottom: 0; flex-shrink: 0; }
+  .ctaTitle { font-size: 14px; margin-bottom: 2px; }
+  .ctaDesc  { font-size: 12px; }
+  .ctaBadge { display: none; } /* 뱃지 모바일 숨김 */
+
+  /* 입지 분석 페이지 */
+  .analysisPage { padding: 16px 0 100px; }
+  .analysisInner { padding: 0 16px; }
+  .searchRowCenter { gap: 8px; }
+  .bigInputCenter { padding: 12px 14px; font-size: 15px; }
+  .btnAnalyze { padding: 12px 16px; font-size: 13px; }
+  .quickChips { gap: 4px; }
+  .chip { font-size: 11px; padding: 4px 10px; }
+  .resultBoxCenter {
+    padding: 16px;
+    border-radius: 12px;
+    margin-top: 16px;
+  }
+  .scoreGridCenter { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .compareGridCenter { grid-template-columns: 1fr; }
+  .resultTabs { gap: 1px; }
+  .rtab { padding: 5px 8px; font-size: 11px; }
+
+  /* 소음 지도 — 모바일에서 지도 전체화면 + 하단 시트 */
+  .app { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: none;
+    order: 2; /* 사이드바를 지도 아래로 */
+    max-height: 280px;
+    overflow-y: auto;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+    border-top: 1px solid var(--border);
+  }
+  .sidebarContent { padding: 16px; }
+  .mainContent {
+    order: 1; /* 지도를 위로 */
+    height: 50vh;
+    min-height: 300px;
+    flex: none;
+  }
+  .kakaoMapEl { min-height: 0 !important; height: 100%; }
+  .mapPlaceholder { min-height: 0 !important; height: 100%; }
+
+  /* 소음 사이드 패널 모바일 */
+  .noiseSearchSection { padding-bottom: 10px; margin-bottom: 10px; }
+  .noiseSummary { padding-bottom: 8px; margin-bottom: 10px; }
+  .noiseStatBox { margin-bottom: 10px; }
+  .btnSubmitFull { margin-bottom: 0; }
+
+  /* 지도 툴바 */
+  .mapToolbar { padding: 8px 12px; gap: 6px; }
+  .fChip { font-size: 10px; padding: 3px 8px; }
+  .mapTimeBar { padding: 8px 12px; }
+
+  /* 모달 — 하단에서 올라오는 시트 스타일 */
+  .modalBg { align-items: flex-end; padding: 0; }
+  .modal {
+    border-radius: 20px 20px 0 0;
+    max-width: 100%;
+    padding: 20px 20px 32px;
+    max-height: 85vh;
+  }
+  /* 모달 상단 핸들 */
+  .modal::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  /* 섹션 패딩 축소 */
+  .featuresSection { padding: 48px 16px; }
+  .pricingSection  { padding: 48px 16px; }
+  .b2bSection      { padding: 48px 16px; }
+  .featGrid { grid-template-columns: 1fr; gap: 12px; }
+  .pricingGrid { grid-template-columns: 1fr; }
+
+  /* FAB 위치 — 하단 네비와 겹치지 않게 */
+  .fab {
+    bottom: 80px;
+    right: 16px;
+    font-size: 12px;
+    padding: 12px 16px;
+  }
+
+  /* 푸터 */
+  .footer { padding: 32px 16px 100px; }
+  .footerTop { flex-direction: column; gap: 16px; }
+
+  /* 하단 네비게이션 표시 */
+  .mobileNav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 300;
+    background: rgba(255,255,255,0.97);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    height: 64px;
+    padding: 0 8px;
+    box-shadow: 0 -4px 16px rgba(0,0,0,.06);
+  }
+  .mobileNavBtn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 500;
+    padding: 8px 4px;
+    border-radius: 10px;
+    transition: all .15s;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .mobileNavBtn:active { background: var(--sub-light); transform: scale(.95); }
+  .mobileNavBtn.mobileNavActive { color: var(--main); font-weight: 700; }
+  .mobileNavIcon { font-size: 20px; line-height: 1; }
+
+} /* end @media 768px */
+
+/* ── 소형 폰 (375px 이하) ── */
+@media (max-width: 375px) {
+  .hero h1 { font-size: 24px; }
+  .headerSearch input::placeholder { font-size: 12px; }
+  .bigInputCenter { font-size: 14px; }
+  .scoreGridCenter { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .scVal { font-size: 16px; }
+}
