@@ -285,18 +285,53 @@ export default function HomePage() {
   const [userLng,           setUserLng]           = useState<number|null>(null);
   const [locLoading,        setLocLoading]        = useState(false);
   const [noiseSearchInput,  setNoiseSearchInput]  = useState('');
+  const [noiseStats,        setNoiseStats]        = useState<Record<string,number>>({});
+  const [statsLoading,      setStatsLoading]      = useState(false);
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
-  // 4. 소음지도 탭: 위치 요청
+  // 소음 현황 통계 로드
+  async function loadNoiseStats(lat: number, lng: number) {
+    setStatsLoading(true);
+    try {
+      const res  = await fetch(`/api/noise-reports?lat=${lat}&lng=${lng}`);
+      const json = await res.json();
+      if (!json.success || !json.data) return;
+      const counts: Record<string,number> = {
+        entertainment: 0, construction: 0, traffic: 0, floor: 0, other: 0,
+      };
+      json.data.forEach((r: { noise_type: string }) => {
+        if (counts[r.noise_type] !== undefined) counts[r.noise_type]++;
+      });
+      setNoiseStats(counts);
+    } catch {
+      // 실패 시 빈 상태 유지
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
+  // 소음지도 탭: 위치 요청 (항상 새로 요청)
   function goNoise() {
     setTab('noise');
-    if (userLat !== null) return;
     setLocLoading(true);
     navigator.geolocation?.getCurrentPosition(
-      p  => { setUserLat(p.coords.latitude); setUserLng(p.coords.longitude); setLocLoading(false); },
-      () => { setUserLat(37.5665); setUserLng(126.9780); setLocLoading(false); },
-      { timeout: 8000 }
+      p => {
+        const lat = p.coords.latitude;
+        const lng = p.coords.longitude;
+        setUserLat(lat);
+        setUserLng(lng);
+        setLocLoading(false);
+        loadNoiseStats(lat, lng);
+      },
+      () => {
+        // 위치 거부 시 서울시청 기본값
+        setUserLat(37.5665);
+        setUserLng(126.9780);
+        setLocLoading(false);
+        loadNoiseStats(37.5665, 126.9780);
+      },
+      { timeout: 8000, enableHighAccuracy: true }
     );
   }
 
@@ -311,6 +346,7 @@ export default function HomePage() {
       if (json.lat && json.lng) {
         setUserLat(json.lat);
         setUserLng(json.lng);
+        loadNoiseStats(json.lat, json.lng);
       } else {
         alert('주소를 찾을 수 없습니다. 다시 확인해 주세요.');
       }
@@ -541,9 +577,29 @@ export default function HomePage() {
               }
             </div>
             <div className={styles.noiseStatBox}>
-              {[['🎵 유흥 소음','147건','#111'],['🏗️ 공사 소음','23건','var(--main)'],['🚗 교통 소음','18건','var(--sub)'],['🏠 층간소음','11건','var(--sub)']].map(([l,v,c])=>(
-                <div key={l} className={styles.noiseStatRow}><span>{l}</span><strong style={{color:c as string}}>{v}</strong></div>
-              ))}
+              {statsLoading ? (
+                <div style={{textAlign:'center',padding:'12px 0',fontSize:12,color:'var(--muted)'}}>현황 불러오는 중...</div>
+              ) : (
+                [
+                  ['🎵 유흥 소음', noiseStats.entertainment ?? 0, '#111'],
+                  ['🏗️ 공사 소음', noiseStats.construction  ?? 0, 'var(--main)'],
+                  ['🚗 교통 소음', noiseStats.traffic        ?? 0, 'var(--sub)'],
+                  ['🏠 층간소음',  noiseStats.floor          ?? 0, 'var(--sub)'],
+                  ['🐕 기타 소음', noiseStats.other          ?? 0, 'var(--muted)'],
+                ].map(([l, v, c]) => (
+                  <div key={l as string} className={styles.noiseStatRow}>
+                    <span>{l}</span>
+                    <strong style={{color: c as string}}>
+                      {(v as number) > 0 ? `${v}건` : '없음'}
+                    </strong>
+                  </div>
+                ))
+              )}
+              {!statsLoading && Object.values(noiseStats).every(v => v === 0) && (
+                <div style={{fontSize:11,color:'var(--muted)',textAlign:'center',paddingTop:6}}>
+                  이 지역 제보가 아직 없어요. 첫 제보를 남겨보세요!
+                </div>
+              )}
             </div>
             <button className={styles.btnSubmitFull} onClick={()=>setReportOpen(true)}>+ 소음 제보하기</button>
           </div>
