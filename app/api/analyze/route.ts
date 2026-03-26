@@ -46,11 +46,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, data: cached.result, cached: true });
     }
 
-    // 4. Kakao Local API로 시설 정보 수집
-    const kakaoData = await fetchKakaoFacilities(address);
+    // 4. Naver Local API로 시설 정보 수집
+    const naverData = await fetchNaverFacilities(address);
 
     // 5. Claude Sonnet으로 종합 분석
-    const analysisResult = await runClaudeAnalysis(address, kakaoData);
+    const analysisResult = await runClaudeAnalysis(address, naverData);
 
     // 6. 캐시 저장
     await supabase
@@ -63,36 +63,61 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ── Kakao Local API 시설 수집 ──────────────────────────────
-async function fetchKakaoFacilities(address: string) {
-  const kakaoKey = process.env.KAKAO_LOCAL_API_KEY;
-  if (!kakaoKey) return null;
+// ── Naver Local API 시설 수집 ──────────────────────────────
+// 1단계: 주소 → 좌표 (Geocoding)
+// 2단계: 좌표 기반 카테고리 검색 (반경 1km)
+async function fetchNaverFacilities(address: string): Promise<Record<string, number> | null> {
+  const clientId     = process.env.NAVER_MAP_CLIENT_ID;
+  const clientSecret = process.env.NAVER_MAP_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
 
-  const categories = [
-    { code: 'SW8',  label: '지하철역' },
-    { code: 'HP8',  label: '병원' },
-    { code: 'PM9',  label: '약국' },
-    { code: 'MT1',  label: '대형마트' },
-    { code: 'CS2',  label: '편의점' },
-    { code: 'SC4',  label: '학교' },
-    { code: 'CE7',  label: '카페' },
-    { code: 'PK6',  label: '주차장' },
+  const headers = {
+    'X-NCP-APIGW-API-KEY-ID': clientId,
+    'X-NCP-APIGW-API-KEY':    clientSecret,
+  };
+
+  // Step 1: 주소 → 좌표
+  let lat: number, lng: number;
+  try {
+    const geoRes = await fetch(
+      `https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodeURIComponent(address)}`,
+      { headers, signal: AbortSignal.timeout(5000) }
+    );
+    const geoData = await geoRes.json();
+    const item = geoData.addresses?.[0];
+    if (!item) return null;
+    lat = parseFloat(item.y);
+    lng = parseFloat(item.x);
+  } catch {
+    return null;
+  }
+
+  // Step 2: 키워드별 주변 시설 검색
+  const keywords = [
+    { keyword: '지하철역',  label: '지하철역' },
+    { keyword: '병원',      label: '병원'     },
+    { keyword: '약국',      label: '약국'     },
+    { keyword: '대형마트',  label: '대형마트' },
+    { keyword: '편의점',    label: '편의점'   },
+    { keyword: '초등학교',  label: '학교'     },
+    { keyword: '카페',      label: '카페'     },
+    { keyword: '공원',      label: '공원'     },
   ];
 
   const results: Record<string, number> = {};
 
-  for (const cat of categories) {
+  await Promise.all(keywords.map(async ({ keyword, label }) => {
     try {
       const res = await fetch(
-        `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=${cat.code}&query=${encodeURIComponent(address)}&radius=1000&size=15`,
-        { headers: { Authorization: `KakaoAK ${kakaoKey}` } }
+        `https://naveropenapi.apigw.ntruss.com/map-place/v1/search?query=${encodeURIComponent(keyword)}&coordinate=${lng},${lat}&radius=1000&count=15`,
+        { headers, signal: AbortSignal.timeout(5000) }
       );
       const data = await res.json();
-      results[cat.label] = data.documents?.length ?? 0;
+      results[label] = data.places?.length ?? 0;
     } catch {
-      results[cat.label] = 0;
+      results[label] = 0;
     }
-  }
+  }));
 
   return results;
 }

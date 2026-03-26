@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styles from './page.module.css';
 
 interface AnalysisResult {
@@ -124,84 +124,149 @@ admin@moveiq.co.kr`,
   },
 };
 
-// ── Naver Map 컴포넌트 ───────────────────────────────────
+// ── 소음 유형별 핀 설정 ─────────────────────────────────
+const PIN_CONFIG: Record<string, { icon: string; color: string }> = {
+  construction:  { icon: '🏗️', color: '#8B6914' },
+  entertainment: { icon: '🎵', color: '#111111' },
+  floor:         { icon: '🏠', color: '#646F4B' },
+  traffic:       { icon: '🚗', color: '#2563EB' },
+  other:         { icon: '🐕', color: '#6B7280' },
+};
+
+// ── Naver Map 컴포넌트 (DB 실제 데이터 연동) ────────────
 function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: boolean }) {
+  const mapRef = useRef<any>(null);
+
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_NAVER_MAP_KEY;
     if (!key || loading) return;
 
-    const init = () => {
-      // DOM 마운트 대기
+    const initMap = () => {
       const el = document.getElementById('naverMapEl');
       if (!el) return;
       const n = (window as any).naver;
       if (!n?.maps) return;
 
+      // 기존 지도 인스턴스 재활용 (lat/lng 변경 시 중심만 이동)
+      if (mapRef.current) {
+        mapRef.current.setCenter(new n.maps.LatLng(lat, lng));
+        return;
+      }
+
       const map = new n.maps.Map(el, {
         center: new n.maps.LatLng(lat, lng),
         zoom: 15,
       });
+      mapRef.current = map;
 
       // 현재 위치 마커
       new n.maps.Marker({
         map,
         position: new n.maps.LatLng(lat, lng),
         icon: {
-          content: `<div style="background:#646F4B;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>`,
-          anchor: new n.maps.Point(7, 7),
+          content: `<div style="background:#646F4B;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>`,
+          anchor: new n.maps.Point(8, 8),
         },
+        zIndex: 100,
       });
 
-      // 샘플 소음 핀
-      [
-        { dlat:+0.005, dlng:+0.003, t:'🎵', c:'#111111' },
-        { dlat:-0.003, dlng:-0.004, t:'🏗️', c:'#111111' },
-        { dlat:+0.002, dlng:-0.005, t:'🏠', c:'#646F4B' },
-        { dlat:-0.005, dlng:+0.006, t:'🚗', c:'#BFD2BF' },
-      ].forEach(p => {
-        const html = `<div style="background:${p.c};width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.25)"><span style="transform:rotate(45deg)">${p.t}</span></div>`;
-        new n.maps.Marker({
-          map,
-          position: new n.maps.LatLng(lat + p.dlat, lng + p.dlng),
-          icon: { content: html, anchor: new n.maps.Point(15, 30) },
-        });
-      });
+      // DB에서 소음 제보 데이터 로드 후 핀 표시
+      loadNoisePins(map, lat, lng, n);
     };
 
-    // SDK 이미 로드된 경우
-    if ((window as any).naver?.maps) {
-      init();
-      return;
-    }
+    if ((window as any).naver?.maps) { initMap(); return; }
 
-    // SDK 스크립트 태그 이미 있는 경우 (로딩 중)
     if (document.getElementById('naver-sdk')) {
-      const waitForLoad = setInterval(() => {
-        if ((window as any).naver?.maps) {
-          clearInterval(waitForLoad);
-          init();
-        }
+      const wait = setInterval(() => {
+        if ((window as any).naver?.maps) { clearInterval(wait); initMap(); }
       }, 100);
       return;
     }
 
-    // 최초 SDK 로드
     const s = document.createElement('script');
-    s.id  = 'naver-sdk';
-    // NCP 키 방식: ncpKeyId 파라미터 사용 (2024년 이후 표준)
-    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
-    s.onload = init;
-    s.onerror = () => console.error('Naver Maps SDK 로드 실패 — Client ID를 확인하세요.');
+    s.id    = 'naver-sdk';
+    s.src   = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
+    s.onload  = initMap;
+    s.onerror = () => console.error('Naver Maps SDK 로드 실패');
     document.head.appendChild(s);
   }, [lat, lng, loading]);
 
   if (loading) return (
     <div className={styles.mapPlaceholder}>
-      <span style={{ fontSize:32 }}>📍</span>
+      <span style={{ fontSize: 32 }}>📍</span>
       <span>현재 위치 확인 중...</span>
     </div>
   );
   return <div id="naverMapEl" className={styles.kakaoMapEl} />;
+}
+
+// ── DB 소음 핀 로드 함수 ─────────────────────────────────
+async function loadNoisePins(map: any, lat: number, lng: number, n: any) {
+  try {
+    const res  = await fetch(`/api/noise-reports?lat=${lat}&lng=${lng}`);
+    const json = await res.json();
+    if (!json.success || !json.data?.length) return;
+
+    json.data.forEach((report: {
+      id: string; noise_type: string; time_slot: string;
+      severity: number; lat: number; lng: number; created_at: string;
+    }) => {
+      const cfg  = PIN_CONFIG[report.noise_type] ?? PIN_CONFIG.other;
+      const size = 24 + report.severity * 2; // 심각도에 따라 핀 크기 조절
+
+      const html = `
+        <div style="
+          background:${cfg.color};
+          width:${size}px; height:${size}px;
+          border-radius:50% 50% 50% 0;
+          transform:rotate(-45deg);
+          display:flex; align-items:center; justify-content:center;
+          font-size:${size * 0.45}px;
+          box-shadow:0 2px 8px rgba(0,0,0,.25);
+          border:2px solid rgba(255,255,255,.8);
+          cursor:pointer;
+        ">
+          <span style="transform:rotate(45deg)">${cfg.icon}</span>
+        </div>`;
+
+      const marker = new n.maps.Marker({
+        map,
+        position: new n.maps.LatLng(report.lat, report.lng),
+        icon: { content: html, anchor: new n.maps.Point(size / 2, size) },
+      });
+
+      // 핀 클릭 시 정보창
+      const timeLabel: Record<string, string> = {
+        dawn: '새벽', morning: '오전', afternoon: '오후', evening: '저녁', night: '심야',
+      };
+      const typeLabel: Record<string, string> = {
+        construction: '공사 소음', entertainment: '유흥 소음',
+        floor: '층간소음', traffic: '교통 소음', other: '기타 소음',
+      };
+      const infoContent = `
+        <div style="padding:10px 14px;font-family:'Noto Sans KR',sans-serif;min-width:140px;">
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${cfg.icon} ${typeLabel[report.noise_type] ?? '소음'}</div>
+          <div style="font-size:11px;color:#6b7260;">발생 시간대: ${timeLabel[report.time_slot] ?? ''}</div>
+          <div style="font-size:11px;color:#6b7260;">심각도: ${'★'.repeat(report.severity)}${'☆'.repeat(5 - report.severity)}</div>
+          <div style="font-size:10px;color:#aaa;margin-top:4px;">${new Date(report.created_at).toLocaleDateString('ko-KR')}</div>
+        </div>`;
+
+      const infoWindow = new n.maps.InfoWindow({
+        content: infoContent,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(100,111,75,0.2)',
+        disableAnchor: false,
+      });
+
+      n.maps.Event.addListener(marker, 'click', () => {
+        if (infoWindow.getMap()) { infoWindow.close(); }
+        else { infoWindow.open(map, marker); }
+      });
+    });
+  } catch (err) {
+    console.error('소음 핀 로드 실패:', err);
+  }
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────
