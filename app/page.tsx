@@ -124,35 +124,55 @@ admin@moveiq.co.kr`,
   },
 };
 
-// ── Kakao Map 컴포넌트 ───────────────────────────────────
-function KakaoMap({ lat, lng, loading }: { lat: number; lng: number; loading: boolean }) {
+// ── Naver Map 컴포넌트 ───────────────────────────────────
+function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: boolean }) {
   useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+    const key = process.env.NEXT_PUBLIC_NAVER_MAP_KEY;
     if (!key || loading) return;
+
     const init = () => {
-      const el = document.getElementById('kakaoMapEl');
-      const k  = (window as any).kakao;
-      if (!el || !k?.maps) return;
-      k.maps.load(() => {
-        const map = new k.maps.Map(el, { center: new k.maps.LatLng(lat, lng), level: 4 });
-        // 현재 위치 마커
-        new k.maps.Marker({ map, position: new k.maps.LatLng(lat, lng) });
-        // 샘플 소음 핀
-        [
-          { dlat:+0.005, dlng:+0.003, t:'🎵', c:'#111111' },
-          { dlat:-0.003, dlng:-0.004, t:'🏗️', c:'#111111' },
-          { dlat:+0.002, dlng:-0.005, t:'🏠', c:'#646F4B' },
-          { dlat:-0.005, dlng:+0.006, t:'🚗', c:'#BFD2BF' },
-        ].forEach(p => {
-          const html = `<div style="background:${p.c};width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.25)"><span style="transform:rotate(45deg)">${p.t}</span></div>`;
-          new k.maps.CustomOverlay({ map, position: new k.maps.LatLng(lat + p.dlat, lng + p.dlng), content: html, yAnchor: 1 });
+      const n = (window as any).naver;
+      if (!n?.maps) return;
+
+      const map = new n.maps.Map('naverMapEl', {
+        center: new n.maps.LatLng(lat, lng),
+        zoom: 15,
+      });
+
+      // 현재 위치 마커
+      new n.maps.Marker({
+        map,
+        position: new n.maps.LatLng(lat, lng),
+        icon: {
+          content: `<div style="background:#646F4B;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>`,
+          anchor: new n.maps.Point(7, 7),
+        },
+      });
+
+      // 샘플 소음 핀
+      [
+        { dlat:+0.005, dlng:+0.003, t:'🎵', c:'#111111' },
+        { dlat:-0.003, dlng:-0.004, t:'🏗️', c:'#111111' },
+        { dlat:+0.002, dlng:-0.005, t:'🏠', c:'#646F4B' },
+        { dlat:-0.005, dlng:+0.006, t:'🚗', c:'#BFD2BF' },
+      ].forEach(p => {
+        const html = `<div style="background:${p.c};width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.25)"><span style="transform:rotate(45deg)">${p.t}</span></div>`;
+        new n.maps.Marker({
+          map,
+          position: new n.maps.LatLng(lat + p.dlat, lng + p.dlng),
+          icon: { content: html, anchor: new n.maps.Point(15, 30) },
         });
       });
     };
-    if (document.getElementById('kakao-sdk')) { init(); return; }
+
+    if (document.getElementById('naver-sdk')) {
+      if ((window as any).naver?.maps) { init(); }
+      else { document.getElementById('naver-sdk')!.addEventListener('load', init); }
+      return;
+    }
     const s = document.createElement('script');
-    s.id  = 'kakao-sdk';
-    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
+    s.id  = 'naver-sdk';
+    s.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}`;
     s.onload = init;
     document.head.appendChild(s);
   }, [lat, lng, loading]);
@@ -163,7 +183,7 @@ function KakaoMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
       <span>현재 위치 확인 중...</span>
     </div>
   );
-  return <div id="kakaoMapEl" className={styles.kakaoMapEl} />;
+  return <div id="naverMapEl" className={styles.kakaoMapEl} />;
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────
@@ -197,34 +217,25 @@ export default function HomePage() {
     );
   }
 
-  // 소음 지도 주소 검색 (Kakao 지오코딩)
-  function searchNoiseLocation() {
+  // 소음 지도 주소 검색 (Naver Geocoding — 서버 API Route 경유)
+  async function searchNoiseLocation() {
     const addr = noiseSearchInput.trim();
     if (!addr) return;
-    const key = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
-    if (!key) return;
-    const doSearch = () => {
-      const k = (window as any).kakao;
-      if (!k?.maps?.services) return;
-      const geocoder = new k.maps.services.Geocoder();
-      geocoder.addressSearch(addr, (result: any[], status: string) => {
-        if (status === k.maps.services.Status.OK && result.length > 0) {
-          const lat = parseFloat(result[0].y);
-          const lng = parseFloat(result[0].x);
-          setUserLat(lat);
-          setUserLng(lng);
-          setLocLoading(false);
-        } else {
-          alert('주소를 찾을 수 없습니다. 다시 확인해 주세요.');
-        }
-      });
-    };
-    if (document.getElementById('kakao-sdk')) { doSearch(); return; }
-    const s = document.createElement('script');
-    s.id  = 'kakao-sdk';
-    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
-    s.onload = () => { (window as any).kakao.maps.load(doSearch); };
-    document.head.appendChild(s);
+    setLocLoading(true);
+    try {
+      const res  = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`);
+      const json = await res.json();
+      if (json.lat && json.lng) {
+        setUserLat(json.lat);
+        setUserLng(json.lng);
+      } else {
+        alert('주소를 찾을 수 없습니다. 다시 확인해 주세요.');
+      }
+    } catch {
+      alert('검색 중 오류가 발생했습니다.');
+    } finally {
+      setLocLoading(false);
+    }
   }
 
   async function runAnalysis(addr?: string) {
@@ -472,7 +483,7 @@ export default function HomePage() {
                 </div>
               </div>
               {/* 4. Kakao Maps — 현재 위치 기반 */}
-              <KakaoMap lat={userLat??37.5665} lng={userLng??126.9780} loading={locLoading}/>
+              <NaverMap lat={userLat??37.5665} lng={userLng??126.9780} loading={locLoading}/>
               <div className={styles.mapTimeBar}>
                 <div>시간대 필터</div>
                 <input type="range" min="0" max="4" defaultValue="2"/>
