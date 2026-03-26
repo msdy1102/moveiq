@@ -131,10 +131,13 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
     if (!key || loading) return;
 
     const init = () => {
+      // DOM 마운트 대기
+      const el = document.getElementById('naverMapEl');
+      if (!el) return;
       const n = (window as any).naver;
       if (!n?.maps) return;
 
-      const map = new n.maps.Map('naverMapEl', {
+      const map = new n.maps.Map(el, {
         center: new n.maps.LatLng(lat, lng),
         zoom: 15,
       });
@@ -165,15 +168,30 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
       });
     };
 
-    if (document.getElementById('naver-sdk')) {
-      if ((window as any).naver?.maps) { init(); }
-      else { document.getElementById('naver-sdk')!.addEventListener('load', init); }
+    // SDK 이미 로드된 경우
+    if ((window as any).naver?.maps) {
+      init();
       return;
     }
+
+    // SDK 스크립트 태그 이미 있는 경우 (로딩 중)
+    if (document.getElementById('naver-sdk')) {
+      const waitForLoad = setInterval(() => {
+        if ((window as any).naver?.maps) {
+          clearInterval(waitForLoad);
+          init();
+        }
+      }, 100);
+      return;
+    }
+
+    // 최초 SDK 로드
     const s = document.createElement('script');
     s.id  = 'naver-sdk';
-    s.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}`;
+    // NCP 키 방식: ncpKeyId 파라미터 사용 (2024년 이후 표준)
+    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
     s.onload = init;
+    s.onerror = () => console.error('Naver Maps SDK 로드 실패 — Client ID를 확인하세요.');
     document.head.appendChild(s);
   }, [lat, lng, loading]);
 
