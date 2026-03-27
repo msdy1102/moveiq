@@ -133,7 +133,7 @@ const PIN_CONFIG: Record<string, { icon: string; color: string }> = {
   other:         { icon: '🐕', color: '#6B7280' },
 };
 
-// ── Naver Map 컴포넌트 (DB 실제 데이터 연동) ────────────
+// ── Naver Map 컴포넌트 ────────────────────────────────────
 function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: boolean }) {
   const mapRef = useRef<any>(null);
 
@@ -141,67 +141,90 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
     const key = process.env.NEXT_PUBLIC_NAVER_MAP_KEY;
     if (!key || loading) return;
 
+    // DOM 마운트 완료 후 실행 보장
     const initMap = () => {
-      const el = document.getElementById('naverMapEl');
-      if (!el) return;
-      const n = (window as any).naver;
-      if (!n?.maps) return;
+      // setTimeout으로 React 렌더링 사이클 후 DOM 접근 보장
+      setTimeout(() => {
+        const el = document.getElementById('naverMapEl');
+        if (!el) return;
+        const n = (window as any).naver;
+        if (!n?.maps) return;
 
-      // 기존 지도 인스턴스 재활용 (lat/lng 변경 시 중심만 이동)
-      if (mapRef.current) {
-        mapRef.current.setCenter(new n.maps.LatLng(lat, lng));
-        return;
-      }
+        // 이미 지도가 생성된 경우 중심만 이동
+        if (mapRef.current) {
+          mapRef.current.setCenter(new n.maps.LatLng(lat, lng));
+          mapRef.current.refresh(); // 지도 크기 재계산
+          return;
+        }
 
-      const map = new n.maps.Map(el, {
-        center: new n.maps.LatLng(lat, lng),
-        zoom: 15,
-      });
-      mapRef.current = map;
+        const map = new n.maps.Map(el, {
+          center: new n.maps.LatLng(lat, lng),
+          zoom: 15,
+        });
+        mapRef.current = map;
 
-      // 현재 위치 마커
-      new n.maps.Marker({
-        map,
-        position: new n.maps.LatLng(lat, lng),
-        icon: {
-          content: `<div style="background:#646F4B;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>`,
-          anchor: new n.maps.Point(8, 8),
-        },
-        zIndex: 100,
-      });
+        // 현재 위치 마커
+        new n.maps.Marker({
+          map,
+          position: new n.maps.LatLng(lat, lng),
+          icon: {
+            content: `<div style="background:#646F4B;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>`,
+            anchor: new n.maps.Point(8, 8),
+          },
+          zIndex: 100,
+        });
 
-      // DB에서 소음 제보 데이터 로드 후 핀 표시
-      loadNoisePins(map, lat, lng, n);
+        // DB 소음 핀 로드
+        loadNoisePins(map, lat, lng, n);
+      }, 100);
     };
 
-    if ((window as any).naver?.maps) { initMap(); return; }
-
-    if (document.getElementById('naver-sdk')) {
-      const wait = setInterval(() => {
-        if ((window as any).naver?.maps) { clearInterval(wait); initMap(); }
-      }, 100);
-      // 10초 후에도 로드 안 되면 타임아웃
-      setTimeout(() => clearInterval(wait), 10000);
+    // SDK 이미 로드된 경우 바로 실행
+    if ((window as any).naver?.maps) {
+      initMap();
       return;
     }
 
+    // SDK 스크립트 이미 삽입됐지만 로딩 중인 경우 대기
+    if (document.getElementById('naver-sdk')) {
+      const wait = setInterval(() => {
+        if ((window as any).naver?.maps) {
+          clearInterval(wait);
+          initMap();
+        }
+      }, 100);
+      setTimeout(() => clearInterval(wait), 15000);
+      return;
+    }
+
+    // SDK 최초 로드
     const s = document.createElement('script');
     s.id  = 'naver-sdk';
-    // 네이버 Maps SDK 정식 엔드포인트
     s.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}`;
     s.onload = initMap;
     s.onerror = () => {
-      const el = document.getElementById('naverMapEl');
-      if (el) el.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f5f7f3;gap:12px;padding:24px;text-align:center;">
-          <span style="font-size:32px">🗺️</span>
-          <div style="font-size:14px;font-weight:700;color:#111">지도를 불러올 수 없습니다</div>
-          <div style="font-size:12px;color:#6b7260;line-height:1.6">
-            Naver Cloud Console에서<br/>
-            <b>Web 서비스 URL에 현재 도메인 등록</b>이 필요합니다.<br/>
-            <a href="https://console.ncloud.com" target="_blank" style="color:#646F4B;font-weight:700">콘솔 바로가기 →</a>
-          </div>
-        </div>`;
+      // 실패 시 oapi 도메인으로 재시도
+      const s2 = document.createElement('script');
+      s2.id   = 'naver-sdk-retry';
+      s2.src  = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}`;
+      s2.onload = initMap;
+      s2.onerror = () => {
+        setTimeout(() => {
+          const el = document.getElementById('naverMapEl');
+          if (el) el.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f5f7f3;gap:12px;padding:24px;text-align:center;">
+              <span style="font-size:40px">🗺️</span>
+              <div style="font-size:14px;font-weight:700;color:#111">지도 API 인증 실패</div>
+              <div style="font-size:12px;color:#6b7260;line-height:1.7">
+                Naver Cloud Console에서<br/>
+                <b>Web Dynamic Map</b> 서비스 선택 후<br/>
+                <b>https://moveiq.vercel.app</b> 을 Web 서비스 URL에 등록하세요.<br/><br/>
+                <a href="https://console.ncloud.com" target="_blank" style="color:#646F4B;font-weight:700;text-decoration:underline">콘솔 바로가기 →</a>
+              </div>
+            </div>`;
+        }, 100);
+      };
+      document.head.appendChild(s2);
     };
     document.head.appendChild(s);
   }, [lat, lng, loading]);
@@ -300,7 +323,7 @@ export default function HomePage() {
   const [userLng,           setUserLng]           = useState<number|null>(null);
   const [locLoading,        setLocLoading]        = useState(false);
   const [noiseSearchInput,  setNoiseSearchInput]  = useState('');
-  const [noiseStats,        setNoiseStats]        = useState<Record<string,number>>({});
+  const [noiseStats,        setNoiseStats]        = useState<Record<string,number> | null>(null);
   const [statsLoading,      setStatsLoading]      = useState(false);
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
@@ -614,26 +637,30 @@ export default function HomePage() {
             <div className={styles.noiseStatBox}>
               {statsLoading ? (
                 <div style={{textAlign:'center',padding:'12px 0',fontSize:12,color:'var(--muted)'}}>현황 불러오는 중...</div>
+              ) : noiseStats === null ? (
+                <div style={{textAlign:'center',padding:'8px 0',fontSize:12,color:'var(--muted)'}}>소음 지도 탭을 열면 현황이 표시됩니다.</div>
               ) : (
-                [
-                  ['🎵 유흥 소음', noiseStats.entertainment ?? 0, '#111'],
-                  ['🏗️ 공사 소음', noiseStats.construction  ?? 0, 'var(--main)'],
-                  ['🚗 교통 소음', noiseStats.traffic        ?? 0, 'var(--sub)'],
-                  ['🏠 층간소음',  noiseStats.floor          ?? 0, 'var(--sub)'],
-                  ['🐕 기타 소음', noiseStats.other          ?? 0, 'var(--muted)'],
-                ].map(([l, v, c]) => (
-                  <div key={l as string} className={styles.noiseStatRow}>
-                    <span>{l}</span>
-                    <strong style={{color: c as string}}>
-                      {(v as number) > 0 ? `${v}건` : '없음'}
-                    </strong>
-                  </div>
-                ))
-              )}
-              {!statsLoading && Object.values(noiseStats).every(v => v === 0) && (
-                <div style={{fontSize:11,color:'var(--muted)',textAlign:'center',paddingTop:6}}>
-                  이 지역 제보가 아직 없어요. 첫 제보를 남겨보세요!
-                </div>
+                <>
+                  {[
+                    ['🎵 유흥 소음', noiseStats.entertainment, '#111'],
+                    ['🏗️ 공사 소음', noiseStats.construction,  'var(--main)'],
+                    ['🚗 교통 소음', noiseStats.traffic,        'var(--muted)'],
+                    ['🏠 층간소음',  noiseStats.floor,          'var(--muted)'],
+                    ['🐕 기타 소음', noiseStats.other,          'var(--muted)'],
+                  ].map(([l, v, c]) => (
+                    <div key={l as string} className={styles.noiseStatRow}>
+                      <span>{l}</span>
+                      <strong style={{color: (v as number) > 0 ? c as string : 'var(--muted)'}}>
+                        {(v as number) > 0 ? `${v}건` : '없음'}
+                      </strong>
+                    </div>
+                  ))}
+                  {Object.values(noiseStats).every(v => v === 0) && (
+                    <div style={{fontSize:11,color:'var(--muted)',textAlign:'center',paddingTop:6}}>
+                      이 지역 제보가 아직 없어요. 첫 제보를 남겨보세요!
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <button className={styles.btnSubmitFull} onClick={()=>setReportOpen(true)}>+ 소음 제보하기</button>
