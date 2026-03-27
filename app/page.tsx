@@ -141,6 +141,22 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
     const key = process.env.NEXT_PUBLIC_NAVER_MAP_KEY;
     if (!key || loading) return;
 
+    // [BUG FIX 4] 인증 실패 전역 콜백 등록 — SDK 로드 전에 등록해야 동작함
+    (window as any).navermap_authFailure = () => {
+      const el = document.getElementById('naverMapEl');
+      if (el) el.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f5f7f3;gap:12px;padding:24px;text-align:center;">
+          <span style="font-size:40px">🗺️</span>
+          <div style="font-size:14px;font-weight:700;color:#111">지도 API 인증 실패</div>
+          <div style="font-size:12px;color:#6b7260;line-height:1.7">
+            Naver Cloud Console에서<br/>
+            <b>Dynamic Map</b> 서비스를 선택하고<br/>
+            <b>https://moveiq.vercel.app</b> 을 Web 서비스 URL에 등록하세요.<br/><br/>
+            <a href="https://console.ncloud.com" target="_blank" style="color:#646F4B;font-weight:700;text-decoration:underline">콘솔 바로가기 →</a>
+          </div>
+        </div>`;
+    };
+
     // DOM 마운트 완료 후 실행 보장
     const initMap = () => {
       // setTimeout으로 React 렌더링 사이클 후 DOM 접근 보장
@@ -153,7 +169,8 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
         // 이미 지도가 생성된 경우 중심만 이동
         if (mapRef.current) {
           mapRef.current.setCenter(new n.maps.LatLng(lat, lng));
-          mapRef.current.refresh(); // 지도 크기 재계산
+          // [BUG FIX 3] refresh()는 Naver Maps API에 없는 메서드 — Event.trigger('resize')로 교체
+          n.maps.Event.trigger(mapRef.current, 'resize');
           return;
         }
 
@@ -185,7 +202,7 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
       return;
     }
 
-    // SDK 스크립트 이미 삽입됐지만 로딩 중인 경우 대기
+    // [BUG FIX 2] 이미 삽입된 SDK 스크립트 대기 — id 'naver-sdk' 단일화
     if (document.getElementById('naver-sdk')) {
       const wait = setInterval(() => {
         if ((window as any).naver?.maps) {
@@ -197,34 +214,23 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
       return;
     }
 
-    // SDK 최초 로드
+    // [BUG FIX 1] SDK 최초 로드 — 올바른 NCP 도메인(oapi.map.naver.com) 단독 사용
+    // openapi.map.naver.com 은 구 네이버 개발자센터 URL로 NCP 키 인증 불가
     const s = document.createElement('script');
     s.id  = 'naver-sdk';
-    s.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
+    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
     s.onload = initMap;
     s.onerror = () => {
-      // 실패 시 oapi 도메인으로 재시도
-      const s2 = document.createElement('script');
-      s2.id   = 'naver-sdk-retry';
-      s2.src  = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
-      s2.onload = initMap;
-      s2.onerror = () => {
-        setTimeout(() => {
-          const el = document.getElementById('naverMapEl');
-          if (el) el.innerHTML = `
-            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f5f7f3;gap:12px;padding:24px;text-align:center;">
-              <span style="font-size:40px">🗺️</span>
-              <div style="font-size:14px;font-weight:700;color:#111">지도 API 인증 실패</div>
-              <div style="font-size:12px;color:#6b7260;line-height:1.7">
-                Naver Cloud Console에서<br/>
-                <b>Web Dynamic Map</b> 서비스 선택 후<br/>
-                <b>https://moveiq.vercel.app</b> 을 Web 서비스 URL에 등록하세요.<br/><br/>
-                <a href="https://console.ncloud.com" target="_blank" style="color:#646F4B;font-weight:700;text-decoration:underline">콘솔 바로가기 →</a>
-              </div>
-            </div>`;
-        }, 100);
-      };
-      document.head.appendChild(s2);
+      // 스크립트 로드 자체 실패 시 오류 UI 표시 (네트워크 문제 등)
+      const el = document.getElementById('naverMapEl');
+      if (el) el.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f5f7f3;gap:12px;padding:24px;text-align:center;">
+          <span style="font-size:40px">🗺️</span>
+          <div style="font-size:14px;font-weight:700;color:#111">지도를 불러올 수 없습니다</div>
+          <div style="font-size:12px;color:#6b7260;line-height:1.7">
+            네트워크 상태를 확인하거나<br/>잠시 후 다시 시도해 주세요.
+          </div>
+        </div>`;
     };
     document.head.appendChild(s);
   }, [lat, lng, loading]);
