@@ -180,14 +180,29 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
       const wait = setInterval(() => {
         if ((window as any).naver?.maps) { clearInterval(wait); initMap(); }
       }, 100);
+      // 10초 후에도 로드 안 되면 타임아웃
+      setTimeout(() => clearInterval(wait), 10000);
       return;
     }
 
     const s = document.createElement('script');
-    s.id    = 'naver-sdk';
-    s.src   = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}`;
-    s.onload  = initMap;
-    s.onerror = () => console.error('Naver Maps SDK 로드 실패 — Naver Cloud Console에서 Web 서비스 URL 등록 확인');
+    s.id  = 'naver-sdk';
+    // 네이버 Maps SDK 정식 엔드포인트
+    s.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}`;
+    s.onload = initMap;
+    s.onerror = () => {
+      const el = document.getElementById('naverMapEl');
+      if (el) el.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f5f7f3;gap:12px;padding:24px;text-align:center;">
+          <span style="font-size:32px">🗺️</span>
+          <div style="font-size:14px;font-weight:700;color:#111">지도를 불러올 수 없습니다</div>
+          <div style="font-size:12px;color:#6b7260;line-height:1.6">
+            Naver Cloud Console에서<br/>
+            <b>Web 서비스 URL에 현재 도메인 등록</b>이 필요합니다.<br/>
+            <a href="https://console.ncloud.com" target="_blank" style="color:#646F4B;font-weight:700">콘솔 바로가기 →</a>
+          </div>
+        </div>`;
+    };
     document.head.appendChild(s);
   }, [lat, lng, loading]);
 
@@ -287,45 +302,48 @@ export default function HomePage() {
   const [noiseSearchInput,  setNoiseSearchInput]  = useState('');
   const [noiseStats,        setNoiseStats]        = useState<Record<string,number>>({});
   const [statsLoading,      setStatsLoading]      = useState(false);
-  const [calsData,          setCalsData]          = useState<{count:number; names:string[]}>({count:0, names:[]});
-  const [calsLoading,       setCalsLoading]       = useState(false);
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
-  // 소음 현황 통계 로드
+  // 소음 현황 통계 로드 (DB 제보 + CALS 공사 건수 합산)
   async function loadNoiseStats(lat: number, lng: number) {
     setStatsLoading(true);
     try {
-      const res  = await fetch(`/api/noise-reports?lat=${lat}&lng=${lng}`);
-      const json = await res.json();
-      if (!json.success || !json.data) return;
-      const counts: Record<string,number> = {
-        entertainment: 0, construction: 0, traffic: 0, floor: 0, other: 0,
+      // DB 제보 데이터와 CALS 공사 데이터 병렬 요청
+      const [noiseRes, calsRes] = await Promise.all([
+        fetch(`/api/noise-reports?lat=${lat}&lng=${lng}`),
+        fetch(`/api/cals-construction?lat=${lat}&lng=${lng}`),
+      ]);
+
+      const noiseJson = await noiseRes.json();
+      const calsJson  = await calsRes.json().catch(() => ({ success: false, count: 0 }));
+
+      const counts: Record<string, number> = {
+        entertainment: 0,
+        construction:  0,
+        traffic:       0,
+        floor:         0,
+        other:         0,
       };
-      json.data.forEach((r: { noise_type: string }) => {
-        if (counts[r.noise_type] !== undefined) counts[r.noise_type]++;
-      });
-      setNoiseStats(counts);
+
+      // DB 제보 카운팅
+      if (noiseJson.success && noiseJson.data) {
+        noiseJson.data.forEach((r: { noise_type: string }) => {
+          if (r.noise_type in counts) counts[r.noise_type]++;
+        });
+      }
+
+      // CALS 공사 건수를 공사 소음에 합산
+      if (calsJson.success && calsJson.count > 0) {
+        counts.construction += calsJson.count;
+      }
+
+      // 상태 한 번에 업데이트 (순서 보장)
+      setNoiseStats({ ...counts });
     } catch {
       // 실패 시 빈 상태 유지
     } finally {
       setStatsLoading(false);
-    }
-  }
-
-  // 건설CALS 공사 현황 로드
-  async function loadCalsData(lat: number, lng: number) {
-    setCalsLoading(true);
-    try {
-      const res  = await fetch(`/api/cals-construction?lat=${lat}&lng=${lng}`);
-      const json = await res.json();
-      if (json.success) {
-        setCalsData({ count: json.count ?? 0, names: json.names ?? [] });
-      }
-    } catch {
-      setCalsData({ count: 0, names: [] });
-    } finally {
-      setCalsLoading(false);
     }
   }
 
@@ -341,14 +359,12 @@ export default function HomePage() {
         setUserLng(lng);
         setLocLoading(false);
         loadNoiseStats(lat, lng);
-        loadCalsData(lat, lng);
       },
       () => {
         setUserLat(37.5665);
         setUserLng(126.9780);
         setLocLoading(false);
         loadNoiseStats(37.5665, 126.9780);
-        loadCalsData(37.5665, 126.9780);
       },
       { timeout: 8000, enableHighAccuracy: true }
     );
@@ -366,7 +382,6 @@ export default function HomePage() {
         setUserLat(json.lat);
         setUserLng(json.lng);
         loadNoiseStats(json.lat, json.lng);
-        loadCalsData(json.lat, json.lng);
       } else {
         alert('주소를 찾을 수 없습니다. 다시 확인해 주세요.');
       }
@@ -622,23 +637,6 @@ export default function HomePage() {
               )}
             </div>
             <button className={styles.btnSubmitFull} onClick={()=>setReportOpen(true)}>+ 소음 제보하기</button>
-
-            {/* 건설CALS 공사 현황 */}
-            <div className={styles.calsBox}>
-              <div className={styles.calsTitle}>🏗️ 인근 공사 현황 <span className={styles.calsBadge}>건설CALS</span></div>
-              {calsLoading ? (
-                <div className={styles.calsLoading}>공사 현황 조회 중...</div>
-              ) : calsData.count > 0 ? (
-                <>
-                  <div className={styles.calsCount}>반경 1km 진행중 공사 <strong>{calsData.count}건</strong></div>
-                  {calsData.names.map((name, i) => (
-                    <div key={i} className={styles.calsItem}>🔸 {name}</div>
-                  ))}
-                </>
-              ) : (
-                <div className={styles.calsEmpty}>현재 인근 진행중 공사 없음</div>
-              )}
-            </div>
           </div>
         </aside>
         )}

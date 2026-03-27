@@ -65,28 +65,34 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// 소음 제보 목록 조회 (50m 랜덤화 뷰 사용)
+// 소음 제보 목록 조회 (50m 랜덤화 뷰 사용, 반경 2km 필터)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const lat  = parseFloat(searchParams.get('lat')  ?? '37.5665');
   const lng  = parseFloat(searchParams.get('lng')  ?? '126.9780');
-  const type = searchParams.get('type'); // 선택적 필터
+  const type = searchParams.get('type');
 
   try {
     const supabase = createServiceClient();
 
+    // 위도/경도 2km 범위 근사 필터 (1도 ≈ 111km)
+    const delta = 0.018; // 약 2km
     let query = supabase
-      .from('noise_reports_public_view') // 50m 랜덤화 뷰
+      .from('noise_reports_public_view')
       .select('id, noise_type, time_slot, severity, lat, lng, created_at')
-      .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()) // 최근 90일
-      .limit(200);
+      .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+      .gte('lat', lat - delta)
+      .lte('lat', lat + delta)
+      .gte('lng', lng - delta)
+      .lte('lng', lng + delta)
+      .limit(300);
 
     if (type) query = query.eq('noise_type', type);
 
     const { data, error } = await query;
     if (error) return apiError('INTERNAL_ERROR', 500, error);
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data: data ?? [] });
   } catch (err) {
     return apiError('INTERNAL_ERROR', 500, err);
   }
