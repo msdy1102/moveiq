@@ -334,18 +334,20 @@ export default function HomePage() {
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
-  // 소음 현황 통계 로드 (DB 제보 + CALS 공사 건수 합산)
+  // 소음 현황 통계 로드 (크라우드 제보 DB + OSM Overpass 공공 데이터)
   async function loadNoiseStats(lat: number, lng: number) {
     setStatsLoading(true);
     try {
-      // DB 제보 데이터와 CALS 공사 데이터 병렬 요청
-      const [noiseRes, calsRes] = await Promise.all([
+      // DB 제보 데이터와 OSM 공사/유흥 데이터 병렬 요청
+      const [noiseRes, osmRes] = await Promise.all([
         fetch(`/api/noise-reports?lat=${lat}&lng=${lng}`),
         fetch(`/api/cals-construction?lat=${lat}&lng=${lng}`),
       ]);
 
       const noiseJson = await noiseRes.json();
-      const calsJson  = await calsRes.json().catch(() => ({ success: false, count: 0 }));
+      const osmJson   = await osmRes.json().catch(() => ({
+        success: false, count: 0, entertainment: 0, traffic: false,
+      }));
 
       const counts: Record<string, number> = {
         entertainment: 0,
@@ -355,16 +357,26 @@ export default function HomePage() {
         other:         0,
       };
 
-      // DB 제보 카운팅
+      // 크라우드 제보 카운팅 (Supabase DB)
       if (noiseJson.success && noiseJson.data) {
         noiseJson.data.forEach((r: { noise_type: string }) => {
           if (r.noise_type in counts) counts[r.noise_type]++;
         });
       }
 
-      // CALS 공사 건수를 공사 소음에 합산
-      if (calsJson.success && calsJson.count > 0) {
-        counts.construction += calsJson.count;
+      // OSM 공사 건수 → 공사 소음
+      if (osmJson.success && osmJson.count > 0) {
+        counts.construction += osmJson.count;
+      }
+
+      // OSM 유흥업소 수 → 유흥 소음 (5개 단위 정규화: 업소 5개 = 소음 1건)
+      if (osmJson.success && osmJson.entertainment > 0) {
+        counts.entertainment += Math.max(1, Math.round(osmJson.entertainment / 5));
+      }
+
+      // OSM 간선도로 근접 → 교통 소음
+      if (osmJson.success && osmJson.traffic) {
+        counts.traffic += 1;
       }
 
       // 상태 한 번에 업데이트 (순서 보장)
