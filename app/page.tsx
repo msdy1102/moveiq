@@ -185,9 +185,9 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
 
     const s = document.createElement('script');
     s.id    = 'naver-sdk';
-    s.src   = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
+    s.src   = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}`;
     s.onload  = initMap;
-    s.onerror = () => console.error('Naver Maps SDK 로드 실패');
+    s.onerror = () => console.error('Naver Maps SDK 로드 실패 — Naver Cloud Console에서 Web 서비스 URL 등록 확인');
     document.head.appendChild(s);
   }, [lat, lng, loading]);
 
@@ -287,6 +287,8 @@ export default function HomePage() {
   const [noiseSearchInput,  setNoiseSearchInput]  = useState('');
   const [noiseStats,        setNoiseStats]        = useState<Record<string,number>>({});
   const [statsLoading,      setStatsLoading]      = useState(false);
+  const [calsData,          setCalsData]          = useState<{count:number; names:string[]}>({count:0, names:[]});
+  const [calsLoading,       setCalsLoading]       = useState(false);
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
@@ -311,6 +313,22 @@ export default function HomePage() {
     }
   }
 
+  // 건설CALS 공사 현황 로드
+  async function loadCalsData(lat: number, lng: number) {
+    setCalsLoading(true);
+    try {
+      const res  = await fetch(`/api/cals-construction?lat=${lat}&lng=${lng}`);
+      const json = await res.json();
+      if (json.success) {
+        setCalsData({ count: json.count ?? 0, names: json.names ?? [] });
+      }
+    } catch {
+      setCalsData({ count: 0, names: [] });
+    } finally {
+      setCalsLoading(false);
+    }
+  }
+
   // 소음지도 탭: 위치 요청 (항상 새로 요청)
   function goNoise() {
     setTab('noise');
@@ -323,13 +341,14 @@ export default function HomePage() {
         setUserLng(lng);
         setLocLoading(false);
         loadNoiseStats(lat, lng);
+        loadCalsData(lat, lng);
       },
       () => {
-        // 위치 거부 시 서울시청 기본값
         setUserLat(37.5665);
         setUserLng(126.9780);
         setLocLoading(false);
         loadNoiseStats(37.5665, 126.9780);
+        loadCalsData(37.5665, 126.9780);
       },
       { timeout: 8000, enableHighAccuracy: true }
     );
@@ -347,6 +366,7 @@ export default function HomePage() {
         setUserLat(json.lat);
         setUserLng(json.lng);
         loadNoiseStats(json.lat, json.lng);
+        loadCalsData(json.lat, json.lng);
       } else {
         alert('주소를 찾을 수 없습니다. 다시 확인해 주세요.');
       }
@@ -602,6 +622,23 @@ export default function HomePage() {
               )}
             </div>
             <button className={styles.btnSubmitFull} onClick={()=>setReportOpen(true)}>+ 소음 제보하기</button>
+
+            {/* 건설CALS 공사 현황 */}
+            <div className={styles.calsBox}>
+              <div className={styles.calsTitle}>🏗️ 인근 공사 현황 <span className={styles.calsBadge}>건설CALS</span></div>
+              {calsLoading ? (
+                <div className={styles.calsLoading}>공사 현황 조회 중...</div>
+              ) : calsData.count > 0 ? (
+                <>
+                  <div className={styles.calsCount}>반경 1km 진행중 공사 <strong>{calsData.count}건</strong></div>
+                  {calsData.names.map((name, i) => (
+                    <div key={i} className={styles.calsItem}>🔸 {name}</div>
+                  ))}
+                </>
+              ) : (
+                <div className={styles.calsEmpty}>현재 인근 진행중 공사 없음</div>
+              )}
+            </div>
           </div>
         </aside>
         )}
