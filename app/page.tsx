@@ -124,6 +124,16 @@ admin@moveiq.co.kr`,
   },
 };
 
+// 필터 칩 라벨 → noise_type 매핑
+const FILTER_TYPE_MAP: Record<string, string> = {
+  '🏗️ 공사':  'construction',
+  '🎵 유흥':  'entertainment',
+  '🏠 층간':  'floor',
+  '🚗 교통':  'traffic',
+  '🐕 기타':  'other',
+};
+const TIME_SLOTS = ['dawn','morning','afternoon','evening','night'];
+
 // ── 소음 유형별 핀 설정 ─────────────────────────────────
 const PIN_CONFIG: Record<string, { icon: string; color: string }> = {
   construction:  { icon: '🏗️', color: '#8B6914' },
@@ -136,13 +146,19 @@ const PIN_CONFIG: Record<string, { icon: string; color: string }> = {
 // ── Naver Map 컴포넌트 ────────────────────────────────────
 function NaverMap({
   lat, lng, loading, onCenterChange, onMapClick,
+  activeFilters, timeSlot, onPinsLoaded, showHeat,
 }: {
   lat: number; lng: number; loading: boolean;
   onCenterChange?: (lat: number, lng: number) => void;
   onMapClick?:     (lat: number, lng: number) => void;
+  activeFilters?:  string[];    // 활성 noise_type 목록
+  timeSlot?:       string;      // 시간대 필터 (dawn|morning|afternoon|evening|night|all)
+  onPinsLoaded?:   () => void;  // 핀 로드 완료 콜백
+  showHeat?:       boolean;     // 히트맵 모드
 }) {
   const mapRef      = useRef<any>(null);
   const clickPinRef = useRef<any>(null); // 클릭 위치 임시 핀
+  const pinsRef     = useRef<any[]>([]);  // 소음 핀 목록 (필터링용)
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_NAVER_MAP_KEY;
@@ -231,8 +247,8 @@ function NaverMap({
           onMapClick?.(clickLat, clickLng);
         });
 
-        // DB 소음 핀 로드
-        loadNoisePins(map, lat, lng, n);
+        // DB 소음 핀 로드 (핀 목록을 pinsRef에 보관)
+        loadNoisePins(map, lat, lng, n, pinsRef, onPinsLoaded);
       }, 100);
     };
 
@@ -275,6 +291,19 @@ function NaverMap({
     document.head.appendChild(s);
   }, [lat, lng, loading]);
 
+  // ── 필터/시간대 변경 시 핀 show/hide ────────────────────
+  useEffect(() => {
+    if (!pinsRef.current.length) return;
+    const n = (window as any).naver;
+    if (!n?.maps || !mapRef.current) return;
+
+    pinsRef.current.forEach(({ marker, noise_type, time_slot }) => {
+      const typeOk = !activeFilters?.length || activeFilters.includes(noise_type);
+      const timeOk = !timeSlot || timeSlot === 'all' || time_slot === timeSlot;
+      marker.setMap(typeOk && timeOk ? mapRef.current : null);
+    });
+  }, [activeFilters, timeSlot]);
+
   if (loading) return (
     <div className={styles.mapPlaceholder}>
       <span style={{ fontSize: 32 }}>📍</span>
@@ -285,18 +314,42 @@ function NaverMap({
 }
 
 // ── DB 소음 핀 로드 함수 ─────────────────────────────────
-async function loadNoisePins(map: any, lat: number, lng: number, n: any) {
+// pinsRef: 핀 목록 저장 ref (필터/시간대 변경 시 재사용)
+// onPinsLoaded: 로드 완료 콜백 (제보 후 갱신용)
+async function loadNoisePins(
+  map: any, lat: number, lng: number, n: any,
+  pinsRef?: React.MutableRefObject<any[]>,
+  onPinsLoaded?: () => void,
+) {
   try {
     const res  = await fetch(`/api/noise-reports?lat=${lat}&lng=${lng}`);
     const json = await res.json();
-    if (!json.success || !json.data?.length) return;
+
+    // 기존 핀 모두 제거
+    if (pinsRef?.current) {
+      pinsRef.current.forEach((p: any) => p.marker?.setMap(null));
+      pinsRef.current = [];
+    }
+
+    if (!json.success || !json.data?.length) {
+      onPinsLoaded?.();
+      return;
+    }
+
+    const timeLabel: Record<string, string> = {
+      dawn: '새벽', morning: '오전', afternoon: '오후', evening: '저녁', night: '심야',
+    };
+    const typeLabel: Record<string, string> = {
+      construction: '공사 소음', entertainment: '유흥 소음',
+      floor: '층간소음', traffic: '교통 소음', other: '기타 소음',
+    };
 
     json.data.forEach((report: {
       id: string; noise_type: string; time_slot: string;
       severity: number; lat: number; lng: number; created_at: string;
     }) => {
       const cfg  = PIN_CONFIG[report.noise_type] ?? PIN_CONFIG.other;
-      const size = 24 + report.severity * 2; // 심각도에 따라 핀 크기 조절
+      const size = 24 + report.severity * 2;
 
       const html = `
         <div style="
@@ -319,14 +372,6 @@ async function loadNoisePins(map: any, lat: number, lng: number, n: any) {
         icon: { content: html, anchor: new n.maps.Point(size / 2, size) },
       });
 
-      // 핀 클릭 시 정보창
-      const timeLabel: Record<string, string> = {
-        dawn: '새벽', morning: '오전', afternoon: '오후', evening: '저녁', night: '심야',
-      };
-      const typeLabel: Record<string, string> = {
-        construction: '공사 소음', entertainment: '유흥 소음',
-        floor: '층간소음', traffic: '교통 소음', other: '기타 소음',
-      };
       const infoContent = `
         <div style="padding:10px 14px;font-family:'Noto Sans KR',sans-serif;min-width:140px;">
           <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${cfg.icon} ${typeLabel[report.noise_type] ?? '소음'}</div>
@@ -347,9 +392,21 @@ async function loadNoisePins(map: any, lat: number, lng: number, n: any) {
         if (infoWindow.getMap()) { infoWindow.close(); }
         else { infoWindow.open(map, marker); }
       });
+
+      // 핀 데이터를 ref에 저장 (필터링 시 show/hide용)
+      if (pinsRef?.current) {
+        pinsRef.current.push({
+          marker,
+          noise_type: report.noise_type,
+          time_slot:  report.time_slot,
+        });
+      }
     });
+
+    onPinsLoaded?.();
   } catch (err) {
     console.error('소음 핀 로드 실패:', err);
+    onPinsLoaded?.();
   }
 }
 
@@ -375,6 +432,12 @@ export default function HomePage() {
   const [mapCenter,         setMapCenter]         = useState<{lat:number;lng:number}|null>(null);
   // 역지오코딩 진행 중 여부 (지도 클릭 시 입력창 로딩 표시)
   const [reverseGeocoding,  setReverseGeocoding]  = useState(false);
+  // 필터 칩 상태 (빈 배열 = 전체 표시)
+  const [activeFilters,     setActiveFilters]     = useState<string[]>([]);
+  // 시간대 슬라이더 (0=새벽, 1=오전, 2=오후, 3=저녁, 4=심야, -1=전체)
+  const [timeSlotIdx,       setTimeSlotIdx]       = useState(-1);
+  // 핀 재로드 트리거 (제보 완료 후 증가)
+  const [pinReloadKey,      setPinReloadKey]      = useState(0);
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
@@ -524,7 +587,12 @@ export default function HomePage() {
         body: JSON.stringify({ noise_type: d.get('noise_type'), time_slot: d.get('time_slot'),
           severity: Number(d.get('severity')), lat: userLat??37.5665, lng: userLng??126.9780, description: d.get('description') }) });
       const json = await res.json();
-      if (json.success) setReportOk(true); else alert(json.message);
+      if (json.success) {
+        setReportOk(true);
+        // 제보 완료 → 핀 재로드 + 소음 현황 갱신
+        setPinReloadKey(k => k + 1);
+        loadNoiseStats(userLat??37.5665, userLng??126.9780);
+      } else alert(json.message);
     } catch { alert('제보 저장에 실패했습니다.'); }
   }
 
@@ -775,9 +843,26 @@ export default function HomePage() {
             <div className={styles.mapArea}>
               <div className={styles.mapToolbar}>
                 <div className={styles.filterChips}>
-                  {['🏗️ 공사','🎵 유흥','🏠 층간','🚗 교통','🐕 기타'].map(f=>(
-                    <button key={f} className={`${styles.fChip} ${styles.on}`}>{f}</button>
-                  ))}
+                  {(['🏗️ 공사','🎵 유흥','🏠 층간','🚗 교통','🐕 기타'] as const).map(f => {
+                    const type    = FILTER_TYPE_MAP[f];
+                    const isActive = activeFilters.length === 0 || activeFilters.includes(type);
+                    return (
+                      <button
+                        key={f}
+                        className={`${styles.fChip} ${isActive ? styles.on : styles.off}`}
+                        onClick={() => {
+                          setActiveFilters(prev => {
+                            // 전체 활성화 상태에서 클릭 → 해당 타입만 선택
+                            if (prev.length === 0) return [type];
+                            // 이미 선택된 타입 클릭 → 해제 (나머지 유지)
+                            const next = prev.filter(t => t !== type);
+                            // 마지막 하나 해제 시 → 전체 활성화로 복귀
+                            return next;
+                          });
+                        }}
+                      >{f}</button>
+                    );
+                  })}
                 </div>
                 <div className={styles.viewToggle}>
                   <button className={`${styles.vBtn} ${mapView==='pin'?styles.active:''}`} onClick={()=>setMapView('pin')}>📍 핀</button>
@@ -791,11 +876,34 @@ export default function HomePage() {
                 loading={locLoading}
                 onCenterChange={(lat, lng) => setMapCenter({ lat, lng })}
                 onMapClick={handleMapClick}
+                activeFilters={activeFilters}
+                timeSlot={timeSlotIdx >= 0 ? TIME_SLOTS[timeSlotIdx] : 'all'}
+                showHeat={mapView === 'heat'}
+                key={`map-${pinReloadKey}`}
               />
               <div className={styles.mapTimeBar}>
-                <div>시간대 필터</div>
-                <input type="range" min="0" max="4" defaultValue="2"/>
-                <div className={styles.mtbTicks}><span>새벽</span><span>오전</span><span>오후</span><span>저녁</span><span>심야</span></div>
+                <div>
+                  시간대 필터
+                  {timeSlotIdx >= 0 && (
+                    <button
+                      onClick={() => setTimeSlotIdx(-1)}
+                      style={{marginLeft:8,fontSize:10,background:'none',border:'1px solid var(--muted)',borderRadius:4,padding:'1px 6px',cursor:'pointer',color:'var(--muted)'}}
+                    >전체</button>
+                  )}
+                </div>
+                <input
+                  type="range" min="-1" max="4"
+                  value={timeSlotIdx}
+                  onChange={e => setTimeSlotIdx(Number(e.target.value))}
+                />
+                <div className={styles.mtbTicks}>
+                  <span style={{color: timeSlotIdx===-1?'var(--main)':''}}>전체</span>
+                  <span style={{color: timeSlotIdx===0?'var(--main)':''}}>새벽</span>
+                  <span style={{color: timeSlotIdx===1?'var(--main)':''}}>오전</span>
+                  <span style={{color: timeSlotIdx===2?'var(--main)':''}}>오후</span>
+                  <span style={{color: timeSlotIdx===3?'var(--main)':''}}>저녁</span>
+                  <span style={{color: timeSlotIdx===4?'var(--main)':''}}>심야</span>
+                </div>
               </div>
             </div>
           )}
