@@ -146,7 +146,7 @@ const PIN_CONFIG: Record<string, { icon: string; color: string }> = {
 // ── Naver Map 컴포넌트 ────────────────────────────────────
 function NaverMap({
   lat, lng, loading, onCenterChange, onMapClick,
-  activeFilters, timeSlot, onPinsLoaded, showHeat,
+  activeFilters, timeSlot, onPinsLoaded, showHeat, osmPins,
 }: {
   lat: number; lng: number; loading: boolean;
   onCenterChange?: (lat: number, lng: number) => void;
@@ -155,6 +155,7 @@ function NaverMap({
   timeSlot?:       string;      // 시간대 필터 (dawn|morning|afternoon|evening|night|all)
   onPinsLoaded?:   () => void;  // 핀 로드 완료 콜백
   showHeat?:       boolean;     // 히트맵 모드
+  osmPins?:        { lat: number; lng: number; osm_type: string; name: string }[];
 }) {
   const mapRef      = useRef<any>(null);
   const clickPinRef = useRef<any>(null); // 클릭 위치 임시 핀
@@ -304,6 +305,80 @@ function NaverMap({
     });
   }, [activeFilters, timeSlot]);
 
+  // ── OSM 공공 핀 렌더링 (유흥업소·공사현장) ────────────────
+  const osmPinMarkersRef = useRef<any[]>([]);
+  useEffect(() => {
+    const n = (window as any).naver;
+    if (!n?.maps || !mapRef.current || !osmPins?.length) {
+      // 기존 OSM 핀 모두 제거
+      osmPinMarkersRef.current.forEach(m => m.setMap(null));
+      osmPinMarkersRef.current = [];
+      return;
+    }
+
+    // 기존 OSM 핀 제거
+    osmPinMarkersRef.current.forEach(m => m.setMap(null));
+    osmPinMarkersRef.current = [];
+
+    // 필터 적용: activeFilters가 있으면 해당 타입만 표시
+    const visiblePins = osmPins.filter(pin => {
+      if (!activeFilters?.length) return true;
+      return activeFilters.includes(pin.osm_type);
+    });
+
+    visiblePins.forEach(pin => {
+      const isEntertainment = pin.osm_type === 'entertainment';
+      // OSM 핀은 크라우드 핀과 구분: 반투명 + 별표(★) 아이콘
+      const color = isEntertainment ? '#111111' : '#8B6914';
+      const icon  = isEntertainment ? '🎵' : '🏗️';
+      const size  = 20;
+
+      const html = `
+        <div style="
+          background:${color};
+          opacity:0.65;
+          width:${size}px; height:${size}px;
+          border-radius:4px;
+          display:flex; align-items:center; justify-content:center;
+          font-size:${size * 0.6}px;
+          box-shadow:0 1px 4px rgba(0,0,0,.2);
+          border:1.5px dashed rgba(255,255,255,.7);
+          cursor:pointer;
+        ">${icon}</div>`;
+
+      const marker = new n.maps.Marker({
+        map: mapRef.current,
+        position: new n.maps.LatLng(pin.lat, pin.lng),
+        icon: { content: html, anchor: new n.maps.Point(size / 2, size / 2) },
+        zIndex: 50, // 크라우드 핀(zIndex 기본)보다 뒤에
+      });
+
+      // 클릭 시 정보창
+      const typeLabel = isEntertainment ? '유흥업소 (OSM)' : '공사 현장 (OSM)';
+      const infoContent = `
+        <div style="padding:8px 12px;font-family:'Noto Sans KR',sans-serif;min-width:130px;">
+          <div style="font-weight:700;font-size:12px;margin-bottom:3px;">${icon} ${pin.name}</div>
+          <div style="font-size:10px;color:#6b7260;">${typeLabel}</div>
+          <div style="font-size:9px;color:#aaa;margin-top:3px;">OpenStreetMap 공공 데이터</div>
+        </div>`;
+
+      const infoWindow = new n.maps.InfoWindow({
+        content: infoContent,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(100,111,75,0.2)',
+        disableAnchor: false,
+      });
+
+      n.maps.Event.addListener(marker, 'click', () => {
+        if (infoWindow.getMap()) infoWindow.close();
+        else infoWindow.open(mapRef.current, marker);
+      });
+
+      osmPinMarkersRef.current.push(marker);
+    });
+  }, [osmPins, activeFilters]);
+
   if (loading) return (
     <div className={styles.mapPlaceholder}>
       <span style={{ fontSize: 32 }}>📍</span>
@@ -438,6 +513,8 @@ export default function HomePage() {
   const [timeSlotIdx,       setTimeSlotIdx]       = useState(-1);
   // 핀 재로드 트리거 (제보 완료 후 증가)
   const [pinReloadKey,      setPinReloadKey]      = useState(0);
+  // OSM 공공 데이터 핀 목록 (유흥업소·공사현장 좌표)
+  const [osmPins,           setOsmPins]           = useState<{lat:number;lng:number;osm_type:string;name:string}[]>([]);
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
@@ -445,7 +522,6 @@ export default function HomePage() {
   async function loadNoiseStats(lat: number, lng: number) {
     setStatsLoading(true);
     try {
-      // DB 제보 데이터와 OSM 공사/유흥 데이터 병렬 요청
       const [noiseRes, osmRes] = await Promise.all([
         fetch(`/api/noise-reports?lat=${lat}&lng=${lng}`),
         fetch(`/api/cals-construction?lat=${lat}&lng=${lng}`),
@@ -453,7 +529,7 @@ export default function HomePage() {
 
       const noiseJson = await noiseRes.json();
       const osmJson   = await osmRes.json().catch(() => ({
-        success: false, count: 0, entertainment: 0, traffic: false,
+        success: false, count: 0, entertainment: 0, traffic: false, pins: [],
       }));
 
       const counts: Record<string, number> = {
@@ -471,22 +547,28 @@ export default function HomePage() {
         });
       }
 
-      // OSM 공사 건수 → 공사 소음
+      // OSM 공사 건수 — 실제 개수 그대로 (÷5 없음)
       if (osmJson.success && osmJson.count > 0) {
         counts.construction += osmJson.count;
       }
 
-      // OSM 유흥업소 수 → 유흥 소음 (5개 단위 정규화: 업소 5개 = 소음 1건)
+      // OSM 유흥업소 수 — 실제 개수 그대로 (÷5 없음)
       if (osmJson.success && osmJson.entertainment > 0) {
-        counts.entertainment += Math.max(1, Math.round(osmJson.entertainment / 5));
+        counts.entertainment += osmJson.entertainment;
       }
 
-      // OSM 간선도로 근접 → 교통 소음
+      // OSM 간선도로 근접 → 교통 소음 1건
       if (osmJson.success && osmJson.traffic) {
         counts.traffic += 1;
       }
 
-      // 상태 한 번에 업데이트 (순서 보장)
+      // OSM 핀 좌표 목록 저장 → 지도에 표시
+      if (osmJson.success && osmJson.pins?.length) {
+        setOsmPins(osmJson.pins);
+      } else {
+        setOsmPins([]);
+      }
+
       setNoiseStats({ ...counts });
     } catch {
       // 실패 시 빈 상태 유지
@@ -879,6 +961,7 @@ export default function HomePage() {
                 activeFilters={activeFilters}
                 timeSlot={timeSlotIdx >= 0 ? TIME_SLOTS[timeSlotIdx] : 'all'}
                 showHeat={mapView === 'heat'}
+                osmPins={osmPins}
                 key={`map-${pinReloadKey}`}
               />
               <div className={styles.mapTimeBar}>
