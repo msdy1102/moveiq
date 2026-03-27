@@ -351,6 +351,37 @@
 }
 .btnNoiseSearch:hover { background: #000; }
 
+/* 현재 지도에서 검색 버튼 */
+.btnSearchFromMap {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 14px;
+  background: transparent;
+  color: var(--main);
+  border: 1.5px solid var(--main);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  text-align: center;
+}
+.btnSearchFromMap:hover:not(:disabled) {
+  background: var(--main);
+  color: #fff;
+}
+.btnSearchFromMap:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mapClickHint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* ── 건설CALS 공사 현황 박스 ── */
 .calsBox {
   background: rgba(139,105,20,.06);

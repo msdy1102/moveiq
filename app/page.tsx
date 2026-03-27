@@ -134,8 +134,15 @@ const PIN_CONFIG: Record<string, { icon: string; color: string }> = {
 };
 
 // ── Naver Map 컴포넌트 ────────────────────────────────────
-function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: boolean }) {
-  const mapRef = useRef<any>(null);
+function NaverMap({
+  lat, lng, loading, onCenterChange, onMapClick,
+}: {
+  lat: number; lng: number; loading: boolean;
+  onCenterChange?: (lat: number, lng: number) => void;
+  onMapClick?:     (lat: number, lng: number) => void;
+}) {
+  const mapRef      = useRef<any>(null);
+  const clickPinRef = useRef<any>(null); // 클릭 위치 임시 핀
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_NAVER_MAP_KEY;
@@ -189,6 +196,39 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
             anchor: new n.maps.Point(8, 8),
           },
           zIndex: 100,
+        });
+
+        // 지도 이동 완료 시 중심 좌표를 부모로 전달
+        n.maps.Event.addListener(map, 'idle', () => {
+          const center = map.getCenter();
+          onCenterChange?.(center.lat(), center.lng());
+        });
+
+        // 지도 클릭 → 클릭 좌표를 부모로 전달 (역지오코딩 트리거)
+        n.maps.Event.addListener(map, 'click', (e: any) => {
+          const clickLat = e.coord.lat();
+          const clickLng = e.coord.lng();
+
+          // 기존 클릭 핀 제거 후 새 핀 표시
+          if (clickPinRef.current) clickPinRef.current.setMap(null);
+          clickPinRef.current = new n.maps.Marker({
+            map,
+            position: new n.maps.LatLng(clickLat, clickLng),
+            icon: {
+              content: `<div style="
+                width:20px;height:20px;
+                background:#fff;
+                border:3px solid #646F4B;
+                border-radius:50% 50% 50% 0;
+                transform:rotate(-45deg);
+                box-shadow:0 2px 8px rgba(0,0,0,.3);
+              "></div>`,
+              anchor: new n.maps.Point(10, 20),
+            },
+            zIndex: 200,
+          });
+
+          onMapClick?.(clickLat, clickLng);
         });
 
         // DB 소음 핀 로드
@@ -331,6 +371,10 @@ export default function HomePage() {
   const [noiseSearchInput,  setNoiseSearchInput]  = useState('');
   const [noiseStats,        setNoiseStats]        = useState<Record<string,number> | null>(null);
   const [statsLoading,      setStatsLoading]      = useState(false);
+  // 지도 현재 중심 좌표 (드래그/줌 후 idle 이벤트로 업데이트)
+  const [mapCenter,         setMapCenter]         = useState<{lat:number;lng:number}|null>(null);
+  // 역지오코딩 진행 중 여부 (지도 클릭 시 입력창 로딩 표시)
+  const [reverseGeocoding,  setReverseGeocoding]  = useState(false);
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
@@ -385,6 +429,27 @@ export default function HomePage() {
       // 실패 시 빈 상태 유지
     } finally {
       setStatsLoading(false);
+    }
+  }
+
+  // 지도 클릭 핸들러 — 역지오코딩 → 주소 입력창 자동 채움 + 소음 검색
+  async function handleMapClick(clickLat: number, clickLng: number) {
+    setReverseGeocoding(true);
+    try {
+      const res  = await fetch(`/api/geocode?lat=${clickLat}&lng=${clickLng}`);
+      const json = await res.json();
+      if (json.success && json.roadAddress) {
+        // 주소 입력창 자동 채움
+        setNoiseSearchInput(json.roadAddress);
+        // 좌표 업데이트 + 소음 통계 재로드
+        setUserLat(clickLat);
+        setUserLng(clickLng);
+        loadNoiseStats(clickLat, clickLng);
+      }
+    } catch {
+      // 역지오코딩 실패 시 조용히 무시 (핀은 이미 표시됨)
+    } finally {
+      setReverseGeocoding(false);
     }
   }
 
@@ -636,13 +701,31 @@ export default function HomePage() {
               <div className={styles.noiseSearchRow}>
                 <input
                   className={styles.noiseSearchInput}
-                  value={noiseSearchInput}
+                  value={reverseGeocoding ? '주소 불러오는 중...' : noiseSearchInput}
                   onChange={e=>setNoiseSearchInput(e.target.value)}
                   onKeyDown={e=>e.key==='Enter'&&searchNoiseLocation()}
-                  placeholder="주소 입력 (예: 마포구 성산동)"
+                  placeholder={reverseGeocoding ? '📍 주소 불러오는 중...' : '지도 클릭 또는 주소 입력'}
+                  readOnly={reverseGeocoding}
                 />
-                <button className={styles.btnNoiseSearch} onClick={searchNoiseLocation}>검색</button>
+                <button
+                  className={styles.btnNoiseSearch}
+                  onClick={searchNoiseLocation}
+                  disabled={reverseGeocoding}
+                >검색</button>
               </div>
+              {/* 현재 지도에서 검색 */}
+              <button
+                className={styles.btnSearchFromMap}
+                disabled={statsLoading || reverseGeocoding}
+                onClick={() => {
+                  const c = mapCenter ?? { lat: userLat??37.5665, lng: userLng??126.9780 };
+                  loadNoiseStats(c.lat, c.lng);
+                }}
+              >
+                {statsLoading ? '🔄 검색 중...' : '🗺️ 현재 지도에서 검색'}
+              </button>
+              {/* 지도 클릭 안내 */}
+              <p className={styles.mapClickHint}>💡 지도를 클릭하면 해당 위치로 자동 검색됩니다</p>
             </div>
 
             <div className={styles.noiseSummary}>
@@ -701,8 +784,14 @@ export default function HomePage() {
                   <button className={`${styles.vBtn} ${mapView==='heat'?styles.active:''}`} onClick={()=>setMapView('heat')}>🌡️ 히트맵</button>
                 </div>
               </div>
-              {/* 4. Kakao Maps — 현재 위치 기반 */}
-              <NaverMap lat={userLat??37.5665} lng={userLng??126.9780} loading={locLoading}/>
+              {/* 4. Naver Map — 현재 위치 기반 */}
+              <NaverMap
+                lat={userLat??37.5665}
+                lng={userLng??126.9780}
+                loading={locLoading}
+                onCenterChange={(lat, lng) => setMapCenter({ lat, lng })}
+                onMapClick={handleMapClick}
+              />
               <div className={styles.mapTimeBar}>
                 <div>시간대 필터</div>
                 <input type="range" min="0" max="4" defaultValue="2"/>
