@@ -200,13 +200,13 @@ function NaverMap({ lat, lng, loading }: { lat: number; lng: number; loading: bo
     // SDK 최초 로드
     const s = document.createElement('script');
     s.id  = 'naver-sdk';
-    s.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}`;
+    s.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
     s.onload = initMap;
     s.onerror = () => {
       // 실패 시 oapi 도메인으로 재시도
       const s2 = document.createElement('script');
       s2.id   = 'naver-sdk-retry';
-      s2.src  = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}`;
+      s2.src  = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
       s2.onload = initMap;
       s2.onerror = () => {
         setTimeout(() => {
