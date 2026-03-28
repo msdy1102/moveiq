@@ -275,7 +275,7 @@ function NaverMap({
     // openapi.map.naver.com 은 구 네이버 개발자센터 URL로 NCP 키 인증 불가
     const s = document.createElement('script');
     s.id  = 'naver-sdk';
-    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}`;
+    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}&submodules=visualization`;
     s.onload = initMap;
     s.onerror = () => {
       // 스크립트 로드 자체 실패 시 오류 UI 표시 (네트워크 문제 등)
@@ -304,6 +304,58 @@ function NaverMap({
       marker.setMap(typeOk && timeOk ? mapRef.current : null);
     });
   }, [activeFilters, timeSlot]);
+
+  // ── 히트맵 렌더링 ─────────────────────────────────────────
+  const heatmapRef = useRef<any>(null);
+  useEffect(() => {
+    const n = (window as any).naver;
+    if (!n?.maps || !mapRef.current) return;
+
+    if (showHeat) {
+      // 히트맵 모드: 크라우드 핀 + OSM 핀 모두 숨김
+      pinsRef.current.forEach(({ marker }) => marker.setMap(null));
+      osmPinMarkersRef.current.forEach(m => m.setMap(null));
+
+      // 히트맵 데이터 포인트 수집
+      const points = [
+        // 크라우드 제보 핀
+        ...pinsRef.current.map(({ marker }) => {
+          const pos = marker.getPosition();
+          return new n.maps.LatLng(pos.lat(), pos.lng());
+        }),
+        // OSM 공공 핀
+        ...(osmPins ?? []).map(p => new n.maps.LatLng(p.lat, p.lng)),
+      ];
+
+      if (points.length === 0) {
+        // 데이터 없을 때 기존 히트맵 제거
+        if (heatmapRef.current) { heatmapRef.current.setMap(null); heatmapRef.current = null; }
+        return;
+      }
+
+      // 기존 히트맵 제거 후 새로 생성
+      if (heatmapRef.current) heatmapRef.current.setMap(null);
+      heatmapRef.current = new n.maps.visualization.HeatMap({
+        map: mapRef.current,
+        data: points,
+        radius: 30,
+        opacity: 0.7,
+        gradient: ['rgba(191,210,191,0)', 'rgba(100,111,75,0.6)', '#646F4B', '#111'],
+      });
+    } else {
+      // 핀 모드: 히트맵 제거 + 핀 복원
+      if (heatmapRef.current) { heatmapRef.current.setMap(null); heatmapRef.current = null; }
+
+      // 필터 조건에 맞는 크라우드 핀 복원
+      pinsRef.current.forEach(({ marker, noise_type, time_slot }) => {
+        const typeOk = !activeFilters?.length || activeFilters.includes(noise_type);
+        const timeOk = !timeSlot || timeSlot === 'all' || time_slot === timeSlot;
+        marker.setMap(typeOk && timeOk ? mapRef.current : null);
+      });
+      // OSM 핀 복원
+      osmPinMarkersRef.current.forEach(m => m.setMap(mapRef.current));
+    }
+  }, [showHeat, osmPins]);
 
   // ── OSM 공공 핀 렌더링 (유흥업소·공사현장) ────────────────
   const osmPinMarkersRef = useRef<any[]>([]);
@@ -515,6 +567,13 @@ export default function HomePage() {
   const [pinReloadKey,      setPinReloadKey]      = useState(0);
   // OSM 공공 데이터 핀 목록 (유흥업소·공사현장 좌표)
   const [osmPins,           setOsmPins]           = useState<{lat:number;lng:number;osm_type:string;name:string}[]>([]);
+  // 소음 알림: 관심 주소 목록 (localStorage 동기화)
+  const [watchedAddresses,  setWatchedAddresses]  = useState<{address:string;lat:number;lng:number}[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { return JSON.parse(localStorage.getItem('moveiq_watched') ?? '[]'); } catch { return []; }
+  });
+  const [alertOpen,         setAlertOpen]         = useState(false);
+  const [notifPermission,   setNotifPermission]   = useState<NotificationPermission>('default');
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
@@ -570,10 +629,53 @@ export default function HomePage() {
       }
 
       setNoiseStats({ ...counts });
+      // 소음 알림 체크 (관심 주소 등록된 경우)
+      checkAlerts(lat, lng, counts);
     } catch {
       // 실패 시 빈 상태 유지
     } finally {
       setStatsLoading(false);
+    }
+  }
+
+  // ── 소음 알림 함수들 ────────────────────────────────────
+  // 알림 권한 요청
+  async function requestNotifPermission() {
+    if (!('Notification' in window)) return;
+    const perm = await Notification.requestPermission();
+    setNotifPermission(perm);
+  }
+
+  // 관심 주소 등록
+  function addWatchedAddress() {
+    if (!noiseSearchInput.trim() || userLat == null || userLng == null) return;
+    const entry = { address: noiseSearchInput.trim(), lat: userLat, lng: userLng };
+    const next  = [...watchedAddresses.filter(w => w.address !== entry.address), entry];
+    setWatchedAddresses(next);
+    localStorage.setItem('moveiq_watched', JSON.stringify(next));
+  }
+
+  // 관심 주소 삭제
+  function removeWatchedAddress(address: string) {
+    const next = watchedAddresses.filter(w => w.address !== address);
+    setWatchedAddresses(next);
+    localStorage.setItem('moveiq_watched', JSON.stringify(next));
+  }
+
+  // 관심 주소 알림 체크 (소음 현황 로드 후 호출)
+  async function checkAlerts(lat: number, lng: number, newStats: Record<string, number>) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const total = Object.values(newStats).reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      const prevKey = `moveiq_alert_${lat.toFixed(3)}_${lng.toFixed(3)}`;
+      const prevTotal = Number(localStorage.getItem(prevKey) ?? 0);
+      if (total > prevTotal) {
+        new Notification('🔊 무브IQ 소음 알림', {
+          body: `관심 지역에 새 소음 데이터가 ${total}건 감지됐습니다.`,
+          icon: '/favicon.ico',
+        });
+        localStorage.setItem(prevKey, String(total));
+      }
     }
   }
 
@@ -914,6 +1016,47 @@ export default function HomePage() {
                 </>
               )}
             </div>
+            {/* ── 소음 알림 섹션 ── */}
+            <div className={styles.alertSection}>
+              <div className={styles.noiseSummaryTitle}>
+                🔔 소음 알림
+                {notifPermission !== 'granted' && (
+                  <button className={styles.btnAlertPermit} onClick={requestNotifPermission}>
+                    알림 허용
+                  </button>
+                )}
+              </div>
+              {notifPermission === 'denied' && (
+                <p className={styles.alertDenied}>브라우저 설정에서 알림을 허용해주세요.</p>
+              )}
+              {/* 현재 검색 주소 등록 버튼 */}
+              {noiseSearchInput.trim() && userLat != null && (
+                <button className={styles.btnAddWatch} onClick={addWatchedAddress}>
+                  📌 "{noiseSearchInput.trim().slice(0,12)}{noiseSearchInput.trim().length>12?'…':''}" 알림 등록
+                </button>
+              )}
+              {/* 관심 주소 목록 */}
+              {watchedAddresses.length > 0 ? (
+                <ul className={styles.watchList}>
+                  {watchedAddresses.map(w => (
+                    <li key={w.address} className={styles.watchItem}>
+                      <button
+                        className={styles.watchAddr}
+                        onClick={() => {
+                          setUserLat(w.lat); setUserLng(w.lng);
+                          setNoiseSearchInput(w.address);
+                          loadNoiseStats(w.lat, w.lng);
+                        }}
+                      >📍 {w.address.slice(0,18)}{w.address.length>18?'…':''}</button>
+                      <button className={styles.watchDel} onClick={() => removeWatchedAddress(w.address)}>✕</button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={styles.watchEmpty}>주소를 검색한 후 알림을 등록하세요.</p>
+              )}
+            </div>
+
             <button className={styles.btnSubmitFull} onClick={()=>setReportOpen(true)}>+ 소음 제보하기</button>
           </div>
         </aside>

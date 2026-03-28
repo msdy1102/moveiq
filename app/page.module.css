@@ -658,3 +658,84 @@
   .scoreGridCenter { grid-template-columns: 1fr 1fr; gap: 6px; }
   .scVal { font-size: 16px; }
 }
+
+/* ── 소음 알림 섹션 ── */
+.alertSection {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 4px;
+  margin-bottom: 12px;
+}
+.btnAlertPermit {
+  margin-left: 8px;
+  font-size: 10px;
+  background: var(--main);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.btnAlertPermit:hover { background: #000; }
+.alertDenied {
+  font-size: 11px;
+  color: #c0392b;
+  margin: 4px 0 8px;
+}
+.btnAddWatch {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--sub-light);
+  color: var(--main);
+  border: 1.5px solid var(--main);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  transition: all .15s;
+}
+.btnAddWatch:hover { background: var(--main); color: #fff; }
+.watchList {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.watchItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg2);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+.watchAddr {
+  flex: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text);
+  text-align: left;
+  padding: 0;
+}
+.watchAddr:hover { color: var(--main); }
+.watchDel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+.watchDel:hover { color: #c0392b; }
+.watchEmpty {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+}
