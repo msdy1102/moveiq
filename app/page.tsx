@@ -569,6 +569,9 @@ export default function HomePage() {
   const [timeSlotIdx,       setTimeSlotIdx]       = useState(-1);
   // 핀 재로드 트리거 (제보 완료 후 증가)
   const [pinReloadKey,      setPinReloadKey]      = useState(0);
+  // 소음 제보 위치 — 지도 클릭 시 해당 좌표, 미클릭 시 현재 위치(userLat/Lng)
+  const [reportLat,         setReportLat]         = useState<number|null>(null);
+  const [reportLng,         setReportLng]         = useState<number|null>(null);
   // OSM 공공 데이터 핀 목록 (유흥업소·공사현장 좌표)
   const [osmPins,           setOsmPins]           = useState<{lat:number;lng:number;osm_type:string;name:string}[]>([]);
   // 소음 알림: 관심 주소 목록 (localStorage 동기화)
@@ -685,6 +688,9 @@ export default function HomePage() {
 
   // 지도 클릭 핸들러 — 역지오코딩 → 주소 입력창 자동 채움 + 소음 검색
   async function handleMapClick(clickLat: number, clickLng: number) {
+    // 지도 클릭 위치를 제보 좌표로 즉시 저장
+    setReportLat(clickLat);
+    setReportLng(clickLng);
     setReverseGeocoding(true);
     try {
       const res  = await fetch(`/api/geocode?lat=${clickLat}&lng=${clickLng}`);
@@ -771,15 +777,18 @@ export default function HomePage() {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
     try {
+      // 제보 위치: 지도 클릭 위치 우선 → 없으면 현재 위치 → 없으면 서울 기본값
+      const submitLat = reportLat ?? userLat ?? 37.5665;
+      const submitLng = reportLng ?? userLng ?? 126.9780;
       const res = await fetch('/api/noise-reports', { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ noise_type: d.get('noise_type'), time_slot: d.get('time_slot'),
-          severity: Number(d.get('severity')), lat: userLat??37.5665, lng: userLng??126.9780, description: d.get('description') }) });
+          severity: Number(d.get('severity')), lat: submitLat, lng: submitLng, description: d.get('description') }) });
       const json = await res.json();
       if (json.success) {
         setReportOk(true);
         // 제보 완료 → 핀 재로드 + 소음 현황 갱신
         setPinReloadKey(k => k + 1);
-        loadNoiseStats(userLat??37.5665, userLng??126.9780);
+        loadNoiseStats(submitLat, submitLng);
       } else alert(json.message);
     } catch { alert('제보 저장에 실패했습니다.'); }
   }
@@ -1375,7 +1384,16 @@ export default function HomePage() {
           <div className={styles.modal}>
             {!reportOk ? (
               <>
-                <div className={styles.modalHead}><h3>🔊 소음 제보하기</h3><button onClick={()=>setReportOpen(false)}>✕</button></div>
+                <div className={styles.modalHead}><h3>🔊 소음 제보하기</h3><button onClick={()=>{setReportOpen(false);setReportOk(false);}}>✕</button></div>
+                {/* 현재 제보 위치 표시 */}
+                <div className={styles.reportLocRow}>
+                  {reportLat != null
+                    ? <><span className={styles.reportLocDot} style={{background:'var(--main)'}}/>
+                        <span>📍 지도 클릭 위치 ({reportLat.toFixed(4)}, {reportLng?.toFixed(4)})</span></>
+                    : <><span className={styles.reportLocDot} style={{background:'#aaa'}}/>
+                        <span>📍 현재 위치 기준 — 지도를 먼저 클릭하면 원하는 위치로 변경됩니다</span></>
+                  }
+                </div>
                 <form onSubmit={submitReport}>
                   <div className={styles.formGroup}><label>소음 유형</label>
                     <select name="noise_type" className={styles.formInput} required>
