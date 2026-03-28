@@ -124,3 +124,18 @@
 .footerLogo { font-family: 'Space Mono', monospace; font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px; }
 .footerTagline { font-size: 13px; color: #BFD2BF; line-height: 1.6; margin-bottom: 20px; }
 .footerCopy { font-size: 11px; color: rgba(255,255,255,.35); border-top: 1px solid rgba(255,255,255,.1); padding-top: 16px; }
+
+/* ── 건물별 거주후기 ── */
+.buildingReviews { padding: 4px 0; }
+.buildingCard { background: var(--bg, #f9faf7); border: 1px solid var(--border, #e8ebe3); border-radius: 12px; padding: 16px; margin-bottom: 10px; }
+.buildingCardTop { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.buildingName { font-size: 14px; font-weight: 700; color: #111; }
+.buildingAddr { font-size: 11px; color: #888; margin-top: 2px; }
+.buildingRating { font-size: 14px; color: #f39c12; flex-shrink: 0; }
+.buildingProscons { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.buildingPros, .buildingCons { font-size: 12px; line-height: 1.5; color: #333; }
+.buildingPros span, .buildingCons span { font-weight: 700; margin-right: 4px; }
+.buildingTags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.buildingTag { font-size: 11px; background: #f0f3ed; color: #646F4B; border-radius: 20px; padding: 3px 8px; }
+.buildingTagWarn { background: #fef9e7; color: #d68910; }
+.buildingMeta { font-size: 11px; color: #999; }

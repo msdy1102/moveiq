@@ -11,6 +11,10 @@ interface AnalysisResult {
   noise_detail: string; commerce_detail: string; development_detail: string;
   alternatives: { name: string; score: number; note: string }[];
   noise_times: { label: string; pct: number; note: string }[];
+  // 확장 필드 (선택)
+  reviews?:      { author: string; rating: number; text: string; date: string }[];
+  jeonse_risk?:  { level: 'low'|'medium'|'high'; reason: string; checklist: string[] };
+  school_info?:  { name: string; type: string; distance: string; rating: string; note: string }[];
 }
 
 // ── 예시 데이터 ──────────────────────────────────────────
@@ -881,9 +885,9 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className={styles.resultTabs}>
-                    {['overview','traffic','infra','school','noise','commerce','dev'].map((t,i)=>(
+                    {['overview','traffic','infra','school','noise','commerce','dev','review','jeonse'].map((t,i)=>(
                       <button key={t} className={`${styles.rtab} ${rTab===t?styles.active:''}`} onClick={()=>setRTab(t)}>
-                        {['종합','교통','인프라','학군','소음★','상권','개발'][i]}
+                        {['종합','교통','인프라','학군★','소음★','상권','개발','거주후기','전세위험'][i]}
                       </button>
                     ))}
                   </div>
@@ -934,9 +938,116 @@ export default function HomePage() {
                   )}
                   {rTab==='traffic'  && <div className={styles.aiBox}><span>🚇</span><p>{D.traffic_detail}</p></div>}
                   {rTab==='infra'    && <div className={styles.aiBox}><span>🏪</span><p>{D.infra_detail}</p></div>}
-                  {rTab==='school'   && <div className={styles.aiBox}><span>📚</span><p>{D.school_detail}</p></div>}
                   {rTab==='commerce' && <div className={styles.aiBox}><span>🛍️</span><p>{D.commerce_detail}</p></div>}
                   {rTab==='dev'      && <div className={styles.aiBox}><span>🏗️</span><p>{D.development_detail}</p></div>}
+
+                  {/* ── 학군 상세 탭 ── */}
+                  {rTab==='school' && (
+                    <div className={styles.schoolPanel}>
+                      <div className={styles.aiBox} style={{marginBottom:16}}><span>📚</span><p>{D.school_detail}</p></div>
+                      {D.school_info && D.school_info.length > 0 ? (
+                        <div className={styles.schoolList}>
+                          <div className={styles.schoolListTitle}>📋 배정 학교 상세</div>
+                          {D.school_info.map((s,i)=>(
+                            <div key={i} className={styles.schoolItem}>
+                              <div className={styles.schoolItemLeft}>
+                                <span className={styles.schoolType}>{s.type}</span>
+                                <strong className={styles.schoolName}>{s.name}</strong>
+                                <span className={styles.schoolDist}>도보 {s.distance}</span>
+                              </div>
+                              <div className={styles.schoolItemRight}>
+                                <span className={styles.schoolRating}>{s.rating}</span>
+                                <span className={styles.schoolNote}>{s.note}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className={styles.schoolNoData}>
+                          <p>🔍 학군 상세 데이터는 AI 분석 시 함께 제공됩니다.</p>
+                          <p style={{fontSize:11,color:'var(--muted)',marginTop:4}}>주소를 입력하면 배정 학교·학원가·평판 정보를 확인할 수 있습니다.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── 거주후기 탭 ── */}
+                  {rTab==='review' && (
+                    <div className={styles.reviewPanel}>
+                      {D.reviews && D.reviews.length > 0 ? (
+                        <>
+                          {D.reviews.map((r,i)=>(
+                            <div key={i} className={styles.reviewItem}>
+                              <div className={styles.reviewHeader}>
+                                <span className={styles.reviewAuthor}>{r.author}</span>
+                                <span className={styles.reviewRating}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
+                                <span className={styles.reviewDate}>{r.date}</span>
+                              </div>
+                              <p className={styles.reviewText}>{r.text}</p>
+                            </div>
+                          ))}
+                          <button
+                            className={styles.btnWriteReview}
+                            onClick={()=>window.location.href='/community'}
+                          >✏️ 이 동네 후기 남기기</button>
+                        </>
+                      ) : (
+                        <div className={styles.reviewEmpty}>
+                          <div style={{fontSize:32,marginBottom:12}}>📝</div>
+                          <p>아직 등록된 거주후기가 없습니다.</p>
+                          <p style={{fontSize:12,color:'var(--muted)',margin:'6px 0 16px'}}>첫 번째 후기를 남겨보세요!</p>
+                          <button
+                            className={styles.btnWriteReview}
+                            onClick={()=>window.location.href='/community'}
+                          >✏️ 후기 작성하러 가기</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── 전세사기 위험도 탭 ── */}
+                  {rTab==='jeonse' && (
+                    <div className={styles.jeonsePanel}>
+                      {D.jeonse_risk ? (
+                        <>
+                          <div className={`${styles.jeonseRiskBadge} ${styles['jeonseRisk_'+D.jeonse_risk.level]}`}>
+                            {D.jeonse_risk.level==='high'?'🔴 위험':''}
+                            {D.jeonse_risk.level==='medium'?'🟡 주의':''}
+                            {D.jeonse_risk.level==='low'?'🟢 안전':''}
+                            {' '}
+                            {D.jeonse_risk.level==='high'?'전세사기 위험 지역':''}
+                            {D.jeonse_risk.level==='medium'?'전세사기 주의 필요':''}
+                            {D.jeonse_risk.level==='low'?'비교적 안전한 지역':''}
+                          </div>
+                          <div className={styles.aiBox} style={{marginTop:12}}><span>🤖</span><p>{D.jeonse_risk.reason}</p></div>
+                          <div className={styles.jeonseChecklist}>
+                            <div className={styles.jeonseCheckTitle}>✅ 계약 전 필수 체크리스트</div>
+                            {D.jeonse_risk.checklist.map((item,i)=>(
+                              <div key={i} className={styles.jeonseCheckItem}>
+                                <span className={styles.jeonseCheckNum}>{i+1}</span>
+                                <span>{item}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className={styles.jeonseNoData}>
+                          <div style={{fontSize:32,marginBottom:12}}>🏦</div>
+                          <p>전세사기 위험도는 AI 분석 시 함께 제공됩니다.</p>
+                          <p style={{fontSize:12,color:'var(--muted)',marginTop:4}}>주소를 입력하면 해당 지역의 깡통전세·전세사기 위험도를 분석합니다.</p>
+                          <div className={styles.jeonseManualBox}>
+                            <div className={styles.jeonseManualTitle}>📋 전세계약 기본 체크리스트</div>
+                            {['등기부등본 열람 (계약 당일·잔금 직전 재확인)','전세가율 80% 초과 여부 확인 (위험 신호)','선순위 채권·근저당 합계 확인','임대인 신원 확인 (등기부등본 소유자와 일치)','전세보증보험 가입 가능 여부 확인 (HUG/SGI)','확정일자 즉시 신청 (전입신고 당일)'].map((item,i)=>(
+                              <div key={i} className={styles.jeonseCheckItem}>
+                                <span className={styles.jeonseCheckNum}>{i+1}</span>
+                                <span>{item}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1016,6 +1127,27 @@ export default function HomePage() {
                 </>
               )}
             </div>
+            {/* ── 민원 원클릭 가이드 ── */}
+            <div className={styles.complaintSection}>
+              <div className={styles.noiseSummaryTitle}>📋 민원 신고 가이드</div>
+              <div className={styles.complaintGrid}>
+                {[
+                  { type:'층간소음', icon:'🏠', tel:'1661-2642', org:'층간소음 이웃사이센터', url:'https://floor.noiseinfo.or.kr' },
+                  { type:'공사소음', icon:'🏗️', tel:'120',       org:'서울시 다산콜센터',     url:'https://www.seoul.go.kr' },
+                  { type:'유흥소음', icon:'🎵', tel:'112',        org:'경찰청 신고',            url:'https://www.police.go.kr' },
+                  { type:'교통소음', icon:'🚗', tel:'1800-5955',  org:'한국도로공사',            url:'https://www.ex.co.kr' },
+                ].map(g=>(
+                  <div key={g.type} className={styles.complaintCard}>
+                    <div className={styles.complaintIcon}>{g.icon}</div>
+                    <div className={styles.complaintType}>{g.type}</div>
+                    <div className={styles.complaintOrg}>{g.org}</div>
+                    <a href={`tel:${g.tel}`} className={styles.complaintTel}>📞 {g.tel}</a>
+                    <a href={g.url} target="_blank" rel="noreferrer" className={styles.complaintLink}>바로가기 →</a>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* ── 소음 알림 섹션 ── */}
             <div className={styles.alertSection}>
               <div className={styles.noiseSummaryTitle}>

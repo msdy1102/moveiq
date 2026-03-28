@@ -739,3 +739,55 @@
   color: var(--muted);
   margin-top: 8px;
 }
+
+/* ── 학군 상세 탭 ── */
+.schoolPanel { padding: 4px 0; }
+.schoolList { margin-top: 12px; }
+.schoolListTitle { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.schoolItem { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 12px; background: var(--bg2); border-radius: 8px; margin-bottom: 6px; gap: 8px; }
+.schoolItemLeft { display: flex; flex-direction: column; gap: 2px; }
+.schoolType { font-size: 10px; background: var(--sub-light); color: var(--main); border-radius: 4px; padding: 1px 6px; width: fit-content; font-weight: 700; }
+.schoolName { font-size: 13px; font-weight: 700; color: var(--text); }
+.schoolDist { font-size: 11px; color: var(--muted); }
+.schoolItemRight { text-align: right; flex-shrink: 0; }
+.schoolRating { display: block; font-size: 13px; font-weight: 700; color: var(--main); }
+.schoolNote { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.schoolNoData { text-align: center; padding: 24px 16px; color: var(--muted); font-size: 13px; }
+
+/* ── 거주후기 탭 ── */
+.reviewPanel { padding: 4px 0; }
+.reviewItem { background: var(--bg2); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+.reviewHeader { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.reviewAuthor { font-size: 12px; font-weight: 700; color: var(--text); }
+.reviewRating { font-size: 12px; color: #f39c12; }
+.reviewDate { font-size: 11px; color: var(--muted); margin-left: auto; }
+.reviewText { font-size: 13px; line-height: 1.65; color: var(--text); }
+.reviewEmpty { text-align: center; padding: 32px 16px; }
+.btnWriteReview { width: 100%; margin-top: 12px; padding: 10px; background: var(--main); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .2s; }
+.btnWriteReview:hover { background: #000; }
+
+/* ── 전세사기 위험도 탭 ── */
+.jeonsePanel { padding: 4px 0; }
+.jeonseRiskBadge { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; padding: 12px 16px; border-radius: 10px; }
+.jeonseRisk_high   { background: #fdecea; color: #c0392b; }
+.jeonseRisk_medium { background: #fef9e7; color: #d68910; }
+.jeonseRisk_low    { background: #eafaf1; color: #1e8449; }
+.jeonseChecklist, .jeonseManualBox { margin-top: 16px; }
+.jeonseCheckTitle, .jeonseManualTitle { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.jeonseCheckItem { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.55; }
+.jeonseCheckItem:last-child { border-bottom: none; }
+.jeonseCheckNum { width: 20px; height: 20px; background: var(--main); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.jeonseNoData { text-align: center; padding: 16px 0 8px; }
+.jeonseManualBox { background: var(--bg2); border-radius: 10px; padding: 14px; }
+
+/* ── 민원 신고 가이드 ── */
+.complaintSection { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; margin-bottom: 12px; }
+.complaintGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.complaintCard { background: var(--bg2); border-radius: 8px; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; }
+.complaintIcon { font-size: 18px; }
+.complaintType { font-size: 11px; font-weight: 700; color: var(--text); }
+.complaintOrg  { font-size: 10px; color: var(--muted); line-height: 1.3; }
+.complaintTel  { font-size: 11px; color: var(--main); font-weight: 700; text-decoration: none; margin-top: 2px; }
+.complaintTel:hover { text-decoration: underline; }
+.complaintLink { font-size: 10px; color: var(--muted); text-decoration: none; }
+.complaintLink:hover { color: var(--main); }

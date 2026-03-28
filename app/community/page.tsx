@@ -85,7 +85,20 @@ const SAMPLE_POSTS = [
   },
 ];
 
-const CATEGORIES = ['전체', '❓ 동네 질문', '💡 생활 꿀팁', '🔊 소음 후기', '🏠 이사 후기', '📢 동네 소식', '🤝 이웃 구해요'];
+const CATEGORIES = ['전체', '❓ 동네 질문', '💡 생활 꿀팁', '🔊 소음 후기', '🏠 이사 후기', '📢 동네 소식', '🤝 이웃 구해요', '🏢 건물 후기'];
+
+// ── 건물별 거주후기 샘플 ──────────────────────────────────
+const BUILDING_REVIEWS = [
+  { id:1, address:'마포구 성산동 123-45', buildingName:'○○빌라 2층', rating:4,
+    pros:'햇빛 잘 들고 조용해요. 건물주 친절.', cons:'주차 1대밖에 안됨. 엘리베이터 없음.',
+    noise:'층간소음 거의 없음', jeonse:'전세가율 68% (안전)', author:'전세살이3년', date:'2025.02' },
+  { id:2, address:'마포구 공덕동 456-78', buildingName:'△△오피스텔 8층', rating:3,
+    pros:'역세권 최고. 편의시설 많음.', cons:'유흥가 소음 새벽까지 심함. 주말은 최악.',
+    noise:'유흥 소음 매우 심함 (10점 중 8점)', jeonse:'전세가율 91% (주의)', author:'공덕뚜벅이', date:'2025.01' },
+  { id:3, address:'마포구 연남동 789-12', buildingName:'연남빌딩 3층', rating:5,
+    pros:'조용하고 카페거리 걸어서 5분. 녹지 많음.', cons:'주차 어렵고 배달 오토바이 소음.',
+    noise:'전반적으로 조용함', jeonse:'전세가율 72% (양호)', author:'연남동토박이', date:'2024.12' },
+];
 const DONGS = ['전체 동네', '마포구 성산동', '마포구 연남동', '마포구 공덕동', '강남구 역삼동', '용산구 이태원동'];
 
 export default function CommunityPage() {
@@ -196,7 +209,39 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            {/* 게시글 목록 */}
+            {/* 건물 후기 탭 */}
+            {selectedCategory === '🏢 건물 후기' ? (
+              <div className={styles.buildingReviews}>
+                <div className={styles.sortBar}>
+                  <span className={styles.resultCount}>건물후기 {BUILDING_REVIEWS.length}개</span>
+                  <button className={styles.btnWrite} onClick={() => setWriteOpen(true)}>🏢 후기 쓰기</button>
+                </div>
+                {BUILDING_REVIEWS.map(r => (
+                  <div key={r.id} className={styles.buildingCard}>
+                    <div className={styles.buildingCardTop}>
+                      <div>
+                        <div className={styles.buildingName}>{r.buildingName}</div>
+                        <div className={styles.buildingAddr}>📍 {r.address}</div>
+                      </div>
+                      <div className={styles.buildingRating}>
+                        {'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}
+                      </div>
+                    </div>
+                    <div className={styles.buildingProscons}>
+                      <div className={styles.buildingPros}><span>👍 장점</span> {r.pros}</div>
+                      <div className={styles.buildingCons}><span>👎 단점</span> {r.cons}</div>
+                    </div>
+                    <div className={styles.buildingTags}>
+                      <span className={styles.buildingTag}>🔊 {r.noise}</span>
+                      <span className={`${styles.buildingTag} ${r.jeonse.includes('주의')?styles.buildingTagWarn:''}`}>🏦 {r.jeonse}</span>
+                    </div>
+                    <div className={styles.buildingMeta}>{r.author} · {r.date}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+            <>
+            {/* 일반 게시글 목록 */}
             {filtered.length === 0 ? (
               <div className={styles.emptyState}>
                 <div>💬</div>
@@ -229,6 +274,8 @@ export default function CommunityPage() {
                   </article>
                 ))}
               </div>
+            )}
+            </>
             )}
           </div>
         </div>
