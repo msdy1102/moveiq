@@ -108,6 +108,35 @@ ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY;
 -- 정책 없음: service_role만 INSERT 가능, 어드민도 삭제 불가
 -- 별도 로그 DB 분리 권장 (프로덕션)
 
+-- ── 사용자 환경설정 (검색 히스토리 + 관심 동네) ─────────
+-- session_id: 비로그인 익명 UUID (localStorage), 로그인 후 user_id와 연결
+CREATE TABLE IF NOT EXISTS user_preferences (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id    TEXT NOT NULL,
+  user_id       UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  search_history JSONB NOT NULL DEFAULT '[]',   -- 입지 분석 검색 히스토리
+  community_dongs JSONB NOT NULL DEFAULT '[]',  -- 커뮤니티 관심 동네
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_prefs_session ON user_preferences(session_id);
+CREATE INDEX IF NOT EXISTS idx_user_prefs_user ON user_preferences(user_id);
+
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+
+-- session_id 기반 자신의 데이터만 읽기/쓰기
+CREATE POLICY "user_prefs_select"
+  ON user_preferences FOR SELECT
+  USING (session_id = current_setting('app.session_id', true));
+
+CREATE POLICY "user_prefs_insert"
+  ON user_preferences FOR INSERT
+  WITH CHECK (session_id = current_setting('app.session_id', true));
+
+CREATE POLICY "user_prefs_update"
+  ON user_preferences FOR UPDATE
+  USING (session_id = current_setting('app.session_id', true));
+
 -- ── 자동 정리: 90일 이상 된 캐시 삭제 (선택) ──────────
 -- Supabase pg_cron 활성화 후 사용
 -- SELECT cron.schedule('cleanup-cache', '0 3 * * *', $$

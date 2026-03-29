@@ -185,3 +185,28 @@
 .dongEmpty {
   font-size: 11px; color: #bbb; padding: 4px 0;
 }
+
+/* ── 동네 자동완성 드롭다운 ── */
+.addDongWrap { position: relative; margin-bottom: 8px; }
+.dongDropdown {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0; z-index: 100;
+  background: #fff;
+  border: 1.5px solid var(--border, #dde0d8);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
+  overflow: hidden;
+}
+.dongDropdownItem {
+  display: block; width: 100%; text-align: left;
+  font-size: 12px; padding: 9px 12px;
+  background: none; border: none; cursor: pointer;
+  color: #333; font-family: inherit;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background .1s;
+}
+.dongDropdownItem:last-child { border-bottom: none; }
+.dongDropdownItem:hover { background: #f0f3ed; color: #646F4B; }
+.dongDropdownLoading, .dongDropdownEmpty {
+  display: block; font-size: 11px; color: #aaa;
+  padding: 10px 12px; text-align: center;
+}

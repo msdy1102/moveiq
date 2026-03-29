@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styles from './community.module.css';
 
 const SAMPLE_POSTS: any[] = [];
@@ -14,29 +14,89 @@ export default function CommunityPage() {
   const [selectedDong,     setSelectedDong]     = useState('전체');
   const [writeOpen,        setWriteOpen]         = useState(false);
   const [searchQ,          setSearchQ]           = useState('');
-  // 동네 목록 — localStorage 저장, 초기값 빈 배열
-  const [dongs, setDongs] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try { return JSON.parse(localStorage.getItem('community_dongs') ?? '[]'); } catch { return []; }
+  // 동네 목록
+  const [dongs,            setDongs]             = useState<string[]>([]);
+  // 동네 추가 UI
+  const [addDongOpen,      setAddDongOpen]       = useState(false);
+  const [newDongInput,     setNewDongInput]       = useState('');
+  const [dongSuggestions,  setDongSuggestions]   = useState<{label:string;lat:number;lng:number}[]>([]);
+  const [dongSearching,    setDongSearching]      = useState(false);
+  const dongSearchTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
+  // 세션 ID
+  const [sessionId] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const ex = localStorage.getItem('moveiq_session_id');
+    if (ex) return ex;
+    const id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+    localStorage.setItem('moveiq_session_id', id);
+    return id;
   });
-  const [addDongOpen,  setAddDongOpen]  = useState(false);
-  const [newDongInput, setNewDongInput] = useState('');
 
-  function addDong() {
-    const d = newDongInput.trim();
-    if (!d || dongs.includes(d)) { setAddDongOpen(false); setNewDongInput(''); return; }
-    const next = [...dongs, d];
-    setDongs(next);
+  // DB에서 동네 목록 로드
+  useEffect(() => {
+    if (!sessionId) return;
+    fetch(`/api/user-preferences?session_id=${encodeURIComponent(sessionId)}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.community_dongs?.length) setDongs(json.community_dongs);
+        else {
+          try {
+            const saved = JSON.parse(localStorage.getItem('community_dongs') ?? '[]');
+            if (saved.length) setDongs(saved);
+          } catch {}
+        }
+      })
+      .catch(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem('community_dongs') ?? '[]');
+          if (saved.length) setDongs(saved);
+        } catch {}
+      });
+  }, [sessionId]);
+
+  // 동네 목록 DB 저장
+  function saveDongs(next: string[]) {
     localStorage.setItem('community_dongs', JSON.stringify(next));
-    setSelectedDong(d);
+    if (!sessionId) return;
+    fetch('/api/user-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, community_dongs: next }),
+    }).catch(() => {});
+  }
+
+  // 동네 입력 디바운스 자동완성
+  function onDongInputChange(val: string) {
+    setNewDongInput(val);
+    setDongSuggestions([]);
+    if (dongSearchTimer.current) clearTimeout(dongSearchTimer.current);
+    if (val.trim().length < 2) return;
+    dongSearchTimer.current = setTimeout(async () => {
+      setDongSearching(true);
+      try {
+        const res  = await fetch(`/api/dong-search?q=${encodeURIComponent(val.trim())}`);
+        const json = await res.json();
+        setDongSuggestions(json.results ?? []);
+      } catch {} finally { setDongSearching(false); }
+    }, 350);
+  }
+
+  // 동네 선택 확정 (자동완성 항목 클릭)
+  function selectDongSuggestion(label: string) {
+    if (dongs.includes(label)) { setAddDongOpen(false); setNewDongInput(''); setDongSuggestions([]); return; }
+    const next = [...dongs, label];
+    setDongs(next);
+    saveDongs(next);
+    setSelectedDong(label);
     setAddDongOpen(false);
     setNewDongInput('');
+    setDongSuggestions([]);
   }
 
   function removeDong(d: string) {
     const next = dongs.filter(x => x !== d);
     setDongs(next);
-    localStorage.setItem('community_dongs', JSON.stringify(next));
+    saveDongs(next);
     if (selectedDong === d) setSelectedDong('전체');
   }
 
@@ -82,19 +142,36 @@ export default function CommunityPage() {
                 <span>📍 동네 선택</span>
                 <button className={styles.btnAddDong} onClick={()=>setAddDongOpen(true)} title="동네 추가">+</button>
               </div>
-              {/* 동네 추가 입력창 */}
+              {/* 동네 추가 입력창 + 자동완성 */}
               {addDongOpen && (
-                <div className={styles.addDongRow}>
-                  <input
-                    className={styles.addDongInput}
-                    value={newDongInput}
-                    onChange={e=>setNewDongInput(e.target.value)}
-                    onKeyDown={e=>e.key==='Enter'&&addDong()}
-                    placeholder="예: 마포구 성산동"
-                    autoFocus
-                  />
-                  <button className={styles.btnAddDongOk} onClick={addDong}>추가</button>
-                  <button className={styles.btnAddDongCancel} onClick={()=>{setAddDongOpen(false);setNewDongInput('');}}>✕</button>
+                <div className={styles.addDongWrap}>
+                  <div className={styles.addDongRow}>
+                    <input
+                      className={styles.addDongInput}
+                      value={newDongInput}
+                      onChange={e => onDongInputChange(e.target.value)}
+                      onKeyDown={e => { if (e.key==='Escape') { setAddDongOpen(false); setNewDongInput(''); setDongSuggestions([]); }}}
+                      placeholder="예: 성산동, 역삼동"
+                      autoFocus
+                    />
+                    <button className={styles.btnAddDongCancel} onClick={()=>{setAddDongOpen(false);setNewDongInput('');setDongSuggestions([]);}}>✕</button>
+                  </div>
+                  {/* 자동완성 드롭다운 */}
+                  {dongSearching && <div className={styles.dongDropdown}><span className={styles.dongDropdownLoading}>검색 중...</span></div>}
+                  {!dongSearching && dongSuggestions.length > 0 && (
+                    <div className={styles.dongDropdown}>
+                      {dongSuggestions.map(s => (
+                        <button
+                          key={s.label}
+                          className={styles.dongDropdownItem}
+                          onClick={() => selectDongSuggestion(s.label)}
+                        >📍 {s.label}</button>
+                      ))}
+                    </div>
+                  )}
+                  {!dongSearching && newDongInput.trim().length >= 2 && dongSuggestions.length === 0 && (
+                    <div className={styles.dongDropdown}><span className={styles.dongDropdownEmpty}>검색 결과 없음</span></div>
+                  )}
                 </div>
               )}
               <div className={styles.dongList}>

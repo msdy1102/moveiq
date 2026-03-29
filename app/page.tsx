@@ -571,18 +571,58 @@ export default function HomePage() {
   const [reportLng,         setReportLng]         = useState<number|null>(null);
   // OSM 공공 데이터 핀 목록 (유흥업소·공사현장 좌표)
   const [osmPins,           setOsmPins]           = useState<{lat:number;lng:number;osm_type:string;name:string}[]>([]);
-  // 내가 찾아본 지역 (입지 분석 검색 히스토리, localStorage)
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try { return JSON.parse(localStorage.getItem('moveiq_history') ?? '[]'); } catch { return []; }
+  // 세션 ID (익명 사용자 식별 — localStorage 영구 저장)
+  const [sessionId] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const existing = localStorage.getItem('moveiq_session_id');
+    if (existing) return existing;
+    const newId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+    localStorage.setItem('moveiq_session_id', newId);
+    return newId;
   });
-  // 소음 알림: 관심 주소 목록 (localStorage 동기화)
-  const [watchedAddresses,  setWatchedAddresses]  = useState<{address:string;lat:number;lng:number}[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try { return JSON.parse(localStorage.getItem('moveiq_watched') ?? '[]'); } catch { return []; }
-  });
+
+  // 내가 찾아본 지역 (입지 분석 검색 히스토리)
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  // 소음 알림: 관심 주소 목록
+  const [watchedAddresses,  setWatchedAddresses]  = useState<{address:string;lat:number;lng:number}[]>([]);
   const [alertOpen,         setAlertOpen]         = useState(false);
   const [notifPermission,   setNotifPermission]   = useState<NotificationPermission>('default');
+
+  // ── DB 환경설정 로드/저장 ──────────────────────────────
+  // sessionId가 준비되면 DB에서 불러오기
+  useEffect(() => {
+    if (!sessionId) return;
+    fetch(`/api/user-preferences?session_id=${encodeURIComponent(sessionId)}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          if (json.search_history?.length)  setRecentSearches(json.search_history);
+          if (json.community_dongs?.length) {
+            // 커뮤니티 동네 목록은 community page에서 별도 관리
+          }
+        }
+      })
+      .catch(() => {
+        // 실패 시 localStorage 폴백
+        try {
+          const h = JSON.parse(localStorage.getItem('moveiq_history') ?? '[]');
+          if (h.length) setRecentSearches(h);
+        } catch {}
+      });
+  }, [sessionId]);
+
+  // 검색 히스토리 DB 저장 헬퍼
+  async function saveSearchHistory(history: string[]) {
+    if (!sessionId) return;
+    // localStorage 동기 백업
+    localStorage.setItem('moveiq_history', JSON.stringify(history));
+    // DB 비동기 저장 (실패해도 UX 무관)
+    fetch('/api/user-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, search_history: history }),
+    }).catch(() => {});
+  }
 
   const STEPS = ['교통 데이터 수집 중...','생활 시설 분석 중...','소음 데이터 연동 중...','AI 종합 평가 생성 중...'];
 
@@ -661,7 +701,15 @@ export default function HomePage() {
     const entry = { address: noiseSearchInput.trim(), lat: userLat, lng: userLng };
     const next  = [...watchedAddresses.filter(w => w.address !== entry.address), entry];
     setWatchedAddresses(next);
+    // localStorage 백업 + DB 저장
     localStorage.setItem('moveiq_watched', JSON.stringify(next));
+    if (sessionId) {
+      fetch('/api/user-preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, watched_addresses: next }),
+      }).catch(() => {});
+    }
   }
 
   // 관심 주소 삭제
@@ -669,6 +717,13 @@ export default function HomePage() {
     const next = watchedAddresses.filter(w => w.address !== address);
     setWatchedAddresses(next);
     localStorage.setItem('moveiq_watched', JSON.stringify(next));
+    if (sessionId) {
+      fetch('/api/user-preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, watched_addresses: next }),
+      }).catch(() => {});
+    }
   }
 
   // 관심 주소 알림 체크 (소음 현황 로드 후 호출)
@@ -688,25 +743,27 @@ export default function HomePage() {
     }
   }
 
-  // 지도 클릭 핸들러 — 역지오코딩 → 주소 입력창 자동 채움 + 소음 검색
+  // 지도 클릭 핸들러 — 역지오코딩 → 주소 자동 입력 + 소음 통계 즉시 검색
   async function handleMapClick(clickLat: number, clickLng: number) {
-    // 지도 클릭 위치를 제보 좌표로 즉시 저장
+    // 클릭 위치를 제보 좌표 + 검색 좌표로 즉시 저장
     setReportLat(clickLat);
     setReportLng(clickLng);
+    setUserLat(clickLat);
+    setUserLng(clickLng);
     setReverseGeocoding(true);
+
+    // 소음 통계 즉시 재로드 (역지오코딩 완료 전에도 검색 시작)
+    loadNoiseStats(clickLat, clickLng);
+
     try {
       const res  = await fetch(`/api/geocode?lat=${clickLat}&lng=${clickLng}`);
       const json = await res.json();
+      // 주소 입력창 자동 채움 (성공 시에만)
       if (json.success && json.roadAddress) {
-        // 주소 입력창 자동 채움
         setNoiseSearchInput(json.roadAddress);
-        // 좌표 업데이트 + 소음 통계 재로드
-        setUserLat(clickLat);
-        setUserLng(clickLng);
-        loadNoiseStats(clickLat, clickLng);
       }
     } catch {
-      // 역지오코딩 실패 시 조용히 무시 (핀은 이미 표시됨)
+      // 역지오코딩 실패해도 소음 통계는 이미 로드 시작됨
     } finally {
       setReverseGeocoding(false);
     }
@@ -765,7 +822,7 @@ export default function HomePage() {
     // 검색 히스토리 저장 (최대 8개, 중복 제거, 최신순)
     setRecentSearches(prev => {
       const next = [address, ...prev.filter(a => a !== address)].slice(0, 8);
-      localStorage.setItem('moveiq_history', JSON.stringify(next));
+      saveSearchHistory(next);
       return next;
     });
     setLoading(true);
