@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import AuthButton from '@/app/components/AuthButton';
 import styles from './community.module.css';
 
 const SAMPLE_POSTS: any[] = [];
@@ -120,7 +121,7 @@ export default function CommunityPage() {
           <a href="/" className={styles.navLink} onClick={e=>{e.preventDefault();window.location.href='/#noise';}}>소음 지도</a>
           <a href="/community" className={`${styles.navLink} ${styles.navLinkActive}`}>소통하기</a>
         </nav>
-        <button className={styles.btnLogin}>로그인</button>
+        <AuthButton />
       </header>
 
       <main className={styles.main}>

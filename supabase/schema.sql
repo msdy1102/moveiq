@@ -142,3 +142,8 @@ CREATE POLICY "user_prefs_update"
 -- SELECT cron.schedule('cleanup-cache', '0 3 * * *', $$
 --   DELETE FROM analysis_cache WHERE created_at < NOW() - INTERVAL '90 days';
 -- $$);
+
+-- ── 인증 후 user_id와 session 연결 (로그인 시 자동 마이그레이션) ──
+-- 로그인 후 session_id → user_id 연결 trigger (선택 구현)
+-- UPDATE user_preferences SET user_id = auth.uid()
+--   WHERE session_id = 'client-session-id' AND user_id IS NULL;

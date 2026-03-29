@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import styles from './page.module.css';
+import AuthButton from './components/AuthButton';
 
 interface AnalysisResult {
   address: string;
@@ -879,7 +880,7 @@ export default function HomePage() {
           <button onClick={()=>runAnalysis()}>→</button>
         </div>
         {/* 5. 헤더 탭 버튼 제거 */}
-        <button className={styles.btnLogin}>로그인</button>
+        <AuthButton />
       </header>
 
       {/* ── HERO ── */}

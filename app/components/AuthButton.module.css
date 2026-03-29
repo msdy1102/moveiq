@@ -1,0 +1,84 @@
+/* AuthButton.module.css */
+.skeleton { width: 80px; height: 32px; background: #f0f0f0; border-radius: 20px; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.authBtns { display: flex; gap: 8px; align-items: center; }
+.loginBtn {
+  background: none; color: #646F4B;
+  border: 1.5px solid #646F4B;
+  padding: 7px 16px; border-radius: 20px;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all .2s;
+  white-space: nowrap;
+}
+.loginBtn:hover { background: #646F4B; color: #fff; }
+.signupBtn {
+  background: #646F4B; color: #fff;
+  border: 1.5px solid #646F4B;
+  padding: 7px 16px; border-radius: 20px;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all .2s;
+  white-space: nowrap;
+}
+.signupBtn:hover { background: #111; border-color: #111; }
+
+/* 로그인 상태 */
+.wrapper { position: relative; }
+.avatarBtn {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: 1.5px solid #e8ebe3;
+  border-radius: 20px; padding: 5px 12px 5px 5px;
+  cursor: pointer; transition: border-color .2s, background .2s;
+}
+.avatarBtn:hover { border-color: #646F4B; background: #f5f7f3; }
+.avatarImg { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
+.avatarInitial {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #646F4B; color: #fff;
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.nickname { font-size: 13px; font-weight: 600; color: #333; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chevron { color: #999; transition: transform .2s; }
+.chevronUp { transform: rotate(180deg); }
+
+/* 드롭다운 */
+.dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 220px; background: #fff;
+  border: 1px solid #e8ebe3; border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.12);
+  padding: 8px 0; z-index: 500;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+
+.dropHeader {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px 12px;
+}
+.dropAvatarImg  { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.dropAvatarInitial {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #646F4B; color: #fff;
+  font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.dropName  { font-size: 13px; font-weight: 700; color: #111; }
+.dropEmail { font-size: 11px; color: #999; margin-top: 1px; }
+.dropDivider { height: 1px; background: #f0f0f0; margin: 4px 0; }
+.dropItem {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; font-size: 13px; color: #333;
+  text-decoration: none; cursor: pointer;
+  background: none; border: none; width: 100%; text-align: left;
+  transition: background .1s;
+}
+.dropItem:hover { background: #f5f7f3; color: #646F4B; }
+.dropItem span { font-size: 15px; }
+.dropSignout { color: #e74c3c; }
+.dropSignout:hover { background: #fdecea; color: #c0392b; }
+
+@media (max-width: 640px) {
+  .signupBtn { display: none; }
+  .nickname  { display: none; }
+}
