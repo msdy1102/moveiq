@@ -1,6 +1,7 @@
 'use client';
 // AuthButton — 헤더의 로그인/유저 버튼 + 드롭다운 메뉴
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from './useAuth';
 import AuthModal from './AuthModal';
 import styles from './AuthButton.module.css';
@@ -32,7 +33,10 @@ export default function AuthButton() {
           <button className={styles.loginBtn} onClick={() => { setModalMode('login'); setShowModal(true); }}>로그인</button>
           <button className={styles.signupBtn} onClick={() => { setModalMode('signup'); setShowModal(true); }}>회원가입</button>
         </div>
-        {showModal && <AuthModal initialMode={modalMode} onClose={() => setShowModal(false)} />}
+        {showModal && typeof document !== 'undefined' && createPortal(
+          <AuthModal initialMode={modalMode} onClose={() => setShowModal(false)} />,
+          document.body
+        )}
       </>
     );
   }
