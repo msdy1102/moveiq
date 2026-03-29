@@ -208,15 +208,22 @@ function NaverMap({
         });
         mapRef.current = map;
 
-        // 현재 위치 마커
-        new n.maps.Marker({
+        // ── 위치 핀 생성 함수 (초기 진입 + 클릭 공통 사용) ──────
+        const ACTIVE_PIN_HTML = `<div style="
+          width:24px;height:24px;
+          background:#646F4B;
+          border-radius:50% 50% 50% 0;
+          transform:rotate(-45deg);
+          border:3px solid #fff;
+          box-shadow:0 3px 10px rgba(0,0,0,.35);
+        "></div>`;
+
+        // 초기 위치 핀 표시 (클릭 핀과 동일 스타일)
+        clickPinRef.current = new n.maps.Marker({
           map,
           position: new n.maps.LatLng(lat, lng),
-          icon: {
-            content: `<div style="background:#646F4B;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>`,
-            anchor: new n.maps.Point(8, 8),
-          },
-          zIndex: 100,
+          icon: { content: ACTIVE_PIN_HTML, anchor: new n.maps.Point(12, 24) },
+          zIndex: 200,
         });
 
         // 지도 이동 완료 시 중심 좌표를 부모로 전달
@@ -225,27 +232,17 @@ function NaverMap({
           onCenterChange?.(center.lat(), center.lng());
         });
 
-        // 지도 클릭 → 클릭 좌표를 부모로 전달 (역지오코딩 트리거)
+        // 지도 클릭 → 핀 이동 + 부모로 좌표 전달
         n.maps.Event.addListener(map, 'click', (e: any) => {
           const clickLat = e.coord.lat();
           const clickLng = e.coord.lng();
 
-          // 기존 클릭 핀 제거 후 새 핀 표시
+          // 기존 핀 위치 이동 (제거 후 재생성)
           if (clickPinRef.current) clickPinRef.current.setMap(null);
           clickPinRef.current = new n.maps.Marker({
             map,
             position: new n.maps.LatLng(clickLat, clickLng),
-            icon: {
-              content: `<div style="
-                width:20px;height:20px;
-                background:#fff;
-                border:3px solid #646F4B;
-                border-radius:50% 50% 50% 0;
-                transform:rotate(-45deg);
-                box-shadow:0 2px 8px rgba(0,0,0,.3);
-              "></div>`,
-              anchor: new n.maps.Point(10, 20),
-            },
+            icon: { content: ACTIVE_PIN_HTML, anchor: new n.maps.Point(12, 24) },
             zIndex: 200,
           });
 
@@ -574,6 +571,11 @@ export default function HomePage() {
   const [reportLng,         setReportLng]         = useState<number|null>(null);
   // OSM 공공 데이터 핀 목록 (유흥업소·공사현장 좌표)
   const [osmPins,           setOsmPins]           = useState<{lat:number;lng:number;osm_type:string;name:string}[]>([]);
+  // 내가 찾아본 지역 (입지 분석 검색 히스토리, localStorage)
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { return JSON.parse(localStorage.getItem('moveiq_history') ?? '[]'); } catch { return []; }
+  });
   // 소음 알림: 관심 주소 목록 (localStorage 동기화)
   const [watchedAddresses,  setWatchedAddresses]  = useState<{address:string;lat:number;lng:number}[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -760,6 +762,12 @@ export default function HomePage() {
     if (!address) return;
     setInput(address);
     setResult(null);
+    // 검색 히스토리 저장 (최대 8개, 중복 제거, 최신순)
+    setRecentSearches(prev => {
+      const next = [address, ...prev.filter(a => a !== address)].slice(0, 8);
+      localStorage.setItem('moveiq_history', JSON.stringify(next));
+      return next;
+    });
     setLoading(true);
     setStep(0);
     const iv = setInterval(() => setStep(s => s >= STEPS.length-1 ? s : s+1), 700);
@@ -863,6 +871,20 @@ export default function HomePage() {
                   <button key={a} className={styles.chip} onClick={()=>runAnalysis(a)}>{a}</button>
                 ))}
               </div>
+              {recentSearches.length > 0 && (
+                <div className={styles.recentSearches}>
+                  <span className={styles.recentLabel}>내가 찾아본 지역:</span>
+                  {recentSearches.map(a=>(
+                    <button key={a} className={`${styles.chip} ${styles.chipRecent}`} onClick={()=>runAnalysis(a)}>
+                      🕐 {a}
+                    </button>
+                  ))}
+                  <button
+                    className={styles.chipClear}
+                    onClick={()=>{ setRecentSearches([]); localStorage.removeItem('moveiq_history'); }}
+                  >지우기</button>
+                </div>
+              )}
 
               {/* 로딩 */}
               {loading && (
@@ -1085,19 +1107,8 @@ export default function HomePage() {
                   disabled={reverseGeocoding}
                 >검색</button>
               </div>
-              {/* 현재 지도에서 검색 */}
-              <button
-                className={styles.btnSearchFromMap}
-                disabled={statsLoading || reverseGeocoding}
-                onClick={() => {
-                  const c = mapCenter ?? { lat: userLat??37.5665, lng: userLng??126.9780 };
-                  loadNoiseStats(c.lat, c.lng);
-                }}
-              >
-                {statsLoading ? '🔄 검색 중...' : '🗺️ 현재 지도에서 검색'}
-              </button>
               {/* 지도 클릭 안내 */}
-              <p className={styles.mapClickHint}>💡 지도를 클릭하면 해당 위치로 자동 검색됩니다</p>
+              <p className={styles.mapClickHint}>💡 지도를 클릭하면 핀 위치 기준으로 자동 검색됩니다</p>
             </div>
 
             <div className={styles.noiseSummary}>

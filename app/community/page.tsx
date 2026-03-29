@@ -3,113 +3,46 @@
 import { useState } from 'react';
 import styles from './community.module.css';
 
-// ── 샘플 게시글 데이터 ──────────────────────────────────
-const SAMPLE_POSTS = [
-  {
-    id: 1,
-    category: '소음 후기',
-    categoryIcon: '🔊',
-    title: '성산동 주말 새벽 소음 실제로 얼마나 심한가요?',
-    content: '계약을 고려 중인데 주변에 유흥가가 있다고 해서요. 실제 거주자분들 경험 궁금합니다.',
-    author: '이사준비중',
-    verified: false,
-    dong: '마포구 성산동',
-    likes: 12,
-    comments: 7,
-    createdAt: '2시간 전',
-  },
-  {
-    id: 2,
-    category: '이사 후기',
-    categoryIcon: '🏠',
-    title: '성산동 3개월 살아보니 솔직 후기',
-    content: '이중창 시공 후 소음은 많이 잡혔어요. 교통은 진짜 최고입니다. 마트까지 도보 5분이고 카페도 많아요.',
-    author: '성산동주민',
-    verified: true,
-    dong: '마포구 성산동',
-    likes: 34,
-    comments: 15,
-    createdAt: '1일 전',
-  },
-  {
-    id: 3,
-    category: '생활 꿀팁',
-    categoryIcon: '💡',
-    title: '이 동네 주차 팁 총정리',
-    content: '주차 전쟁이 심한 동네인데, 이른 아침이나 주중 낮엔 주차 공간 여유있어요. 공영주차장 위치도 알려드릴게요.',
-    author: '5년거주자',
-    verified: true,
-    dong: '마포구 성산동',
-    likes: 21,
-    comments: 4,
-    createdAt: '3일 전',
-  },
-  {
-    id: 4,
-    category: '동네 질문',
-    categoryIcon: '❓',
-    title: '연남동 쪽 초등학교 배정 어떻게 되나요?',
-    content: '아이가 내년에 입학 예정인데 연남동으로 이사 고려 중이에요. 학교 환경이 궁금합니다.',
-    author: '초등맘',
-    verified: false,
-    dong: '마포구 연남동',
-    likes: 8,
-    comments: 3,
-    createdAt: '5일 전',
-  },
-  {
-    id: 5,
-    category: '동네 소식',
-    categoryIcon: '📢',
-    title: '공덕동 재개발 투표 공고 — 주민 참여 안내',
-    content: '이번 주 금요일까지 재개발 찬반 투표입니다. 해당 구역 거주자분들 꼭 확인하세요.',
-    author: '동네지킴이',
-    verified: true,
-    dong: '마포구 공덕동',
-    likes: 45,
-    comments: 22,
-    createdAt: '1주일 전',
-  },
-  {
-    id: 6,
-    category: '이웃 구해요',
-    categoryIcon: '🤝',
-    title: '성산동 이사 예정인데 동네 정보 알려주실 분',
-    content: '다음 달 성산동으로 이사 예정입니다. 실제 살아보신 분의 생생한 이야기 듣고 싶어요!',
-    author: '이사예정자',
-    verified: false,
-    dong: '마포구 성산동',
-    likes: 3,
-    comments: 9,
-    createdAt: '2일 전',
-  },
-];
+const SAMPLE_POSTS: any[] = [];
 
 const CATEGORIES = ['전체', '❓ 동네 질문', '💡 생활 꿀팁', '🔊 소음 후기', '🏠 이사 후기', '📢 동네 소식', '🤝 이웃 구해요', '🏢 건물 후기'];
 
-// ── 건물별 거주후기 샘플 ──────────────────────────────────
-const BUILDING_REVIEWS = [
-  { id:1, address:'마포구 성산동 123-45', buildingName:'○○빌라 2층', rating:4,
-    pros:'햇빛 잘 들고 조용해요. 건물주 친절.', cons:'주차 1대밖에 안됨. 엘리베이터 없음.',
-    noise:'층간소음 거의 없음', jeonse:'전세가율 68% (안전)', author:'전세살이3년', date:'2025.02' },
-  { id:2, address:'마포구 공덕동 456-78', buildingName:'△△오피스텔 8층', rating:3,
-    pros:'역세권 최고. 편의시설 많음.', cons:'유흥가 소음 새벽까지 심함. 주말은 최악.',
-    noise:'유흥 소음 매우 심함 (10점 중 8점)', jeonse:'전세가율 91% (주의)', author:'공덕뚜벅이', date:'2025.01' },
-  { id:3, address:'마포구 연남동 789-12', buildingName:'연남빌딩 3층', rating:5,
-    pros:'조용하고 카페거리 걸어서 5분. 녹지 많음.', cons:'주차 어렵고 배달 오토바이 소음.',
-    noise:'전반적으로 조용함', jeonse:'전세가율 72% (양호)', author:'연남동토박이', date:'2024.12' },
-];
-const DONGS = ['전체 동네', '마포구 성산동', '마포구 연남동', '마포구 공덕동', '강남구 역삼동', '용산구 이태원동'];
+const BUILDING_REVIEWS: any[] = [];
 
 export default function CommunityPage() {
   const [selectedCategory, setSelectedCategory] = useState('전체');
-  const [selectedDong,     setSelectedDong]     = useState('전체 동네');
+  const [selectedDong,     setSelectedDong]     = useState('전체');
   const [writeOpen,        setWriteOpen]         = useState(false);
   const [searchQ,          setSearchQ]           = useState('');
+  // 동네 목록 — localStorage 저장, 초기값 빈 배열
+  const [dongs, setDongs] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { return JSON.parse(localStorage.getItem('community_dongs') ?? '[]'); } catch { return []; }
+  });
+  const [addDongOpen,  setAddDongOpen]  = useState(false);
+  const [newDongInput, setNewDongInput] = useState('');
 
-  const filtered = SAMPLE_POSTS.filter(p => {
+  function addDong() {
+    const d = newDongInput.trim();
+    if (!d || dongs.includes(d)) { setAddDongOpen(false); setNewDongInput(''); return; }
+    const next = [...dongs, d];
+    setDongs(next);
+    localStorage.setItem('community_dongs', JSON.stringify(next));
+    setSelectedDong(d);
+    setAddDongOpen(false);
+    setNewDongInput('');
+  }
+
+  function removeDong(d: string) {
+    const next = dongs.filter(x => x !== d);
+    setDongs(next);
+    localStorage.setItem('community_dongs', JSON.stringify(next));
+    if (selectedDong === d) setSelectedDong('전체');
+  }
+
+  const filtered = SAMPLE_POSTS.filter((p: any) => {
     const catMatch = selectedCategory === '전체' || p.category === selectedCategory.replace(/^[^\s]+\s/, '');
-    const dongMatch = selectedDong === '전체 동네' || p.dong === selectedDong;
+    const dongMatch = selectedDong === '전체' || p.dong === selectedDong;
     const searchMatch = !searchQ || p.title.includes(searchQ) || p.content.includes(searchQ);
     return catMatch && dongMatch && searchMatch;
   });
@@ -145,17 +78,44 @@ export default function CommunityPage() {
           <aside className={styles.sidebar}>
             {/* 동네 선택 */}
             <div className={styles.sideSection}>
-              <div className={styles.sideTitle}>📍 동네 선택</div>
+              <div className={styles.sideTitle} style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <span>📍 동네 선택</span>
+                <button className={styles.btnAddDong} onClick={()=>setAddDongOpen(true)} title="동네 추가">+</button>
+              </div>
+              {/* 동네 추가 입력창 */}
+              {addDongOpen && (
+                <div className={styles.addDongRow}>
+                  <input
+                    className={styles.addDongInput}
+                    value={newDongInput}
+                    onChange={e=>setNewDongInput(e.target.value)}
+                    onKeyDown={e=>e.key==='Enter'&&addDong()}
+                    placeholder="예: 마포구 성산동"
+                    autoFocus
+                  />
+                  <button className={styles.btnAddDongOk} onClick={addDong}>추가</button>
+                  <button className={styles.btnAddDongCancel} onClick={()=>{setAddDongOpen(false);setNewDongInput('');}}>✕</button>
+                </div>
+              )}
               <div className={styles.dongList}>
-                {DONGS.map(d => (
-                  <button
-                    key={d}
-                    className={`${styles.dongBtn} ${selectedDong === d ? styles.dongBtnActive : ''}`}
-                    onClick={() => setSelectedDong(d)}
-                  >
-                    {d}
-                  </button>
+                {/* 전체 버튼 */}
+                <button
+                  className={`${styles.dongBtn} ${selectedDong === '전체' ? styles.dongBtnActive : ''}`}
+                  onClick={() => setSelectedDong('전체')}
+                >전체</button>
+                {/* 사용자 추가 동네 */}
+                {dongs.map(d => (
+                  <div key={d} className={styles.dongBtnWrap}>
+                    <button
+                      className={`${styles.dongBtn} ${selectedDong === d ? styles.dongBtnActive : ''}`}
+                      onClick={() => setSelectedDong(d)}
+                    >{d}</button>
+                    <button className={styles.dongBtnDel} onClick={()=>removeDong(d)}>✕</button>
+                  </div>
                 ))}
+                {dongs.length === 0 && (
+                  <p className={styles.dongEmpty}>+ 버튼으로 관심 동네를 추가하세요</p>
+                )}
               </div>
             </div>
 
