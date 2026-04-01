@@ -1,27 +1,39 @@
-/* globals.css — MoveIQ v2 */
+/* globals.css — MoveIQ v3 Light */
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
 
 :root {
   /* Brand */
   --main:      #646F4B;
   --main-dark: #4a5236;
+  --main-lite: #7a8b5e;
   --sub:       #BFD2BF;
-  --sub-light: rgba(191,210,191,0.18);
+  --sub-light: rgba(191,210,191,0.22);
+  --sub-mid:   rgba(191,210,191,0.45);
+  --accent:    #e8f0e8;
 
-  /* Backgrounds */
+  /* Backgrounds — 밝은 그린-화이트 계열 */
   --bg:        #ffffff;
-  --bg2:       #f5f7f3;
-  --bg3:       #edf1eb;
+  --bg2:       #f7faf5;
+  --bg3:       #eef4ec;
+  --bg4:       #e4ede1;
 
   /* Text */
-  --text:      #111111;
-  --text2:     #444444;
-  --muted:     #6b7260;
+  --text:      #1a1e15;
+  --text2:     #3d4535;
+  --muted:     #7a8570;
+  --muted2:    #a4ad98;
 
   /* UI */
-  --border:    rgba(100,111,75,0.14);
+  --border:    rgba(100,111,75,0.15);
+  --border2:   rgba(100,111,75,0.08);
   --r:         12px;
+  --r2:        8px;
   --header-h:  64px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 4px rgba(100,111,75,.08);
+  --shadow-md: 0 4px 16px rgba(100,111,75,.10);
+  --shadow-lg: 0 8px 32px rgba(100,111,75,.12);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

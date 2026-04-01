@@ -4,33 +4,31 @@ import Link from 'next/link';
 import AuthButton from '../components/AuthButton';
 import styles from './noise-map.module.css';
 
-// ── 상수 ─────────────────────────────────────────────────
+// ── 상수 ──────────────────────────────────────────────────
 const FILTER_TYPE_MAP: Record<string, string> = {
-  '🏗️ 공사': 'construction',
-  '🎵 유흥': 'entertainment',
-  '🏠 층간': 'floor',
-  '🚗 교통': 'traffic',
-  '🐕 기타': 'other',
+  '🏗️ 공사': 'construction', '🎵 유흥': 'entertainment',
+  '🏠 층간': 'floor',        '🚗 교통': 'traffic', '🐕 기타': 'other',
 };
 const TIME_SLOTS = ['dawn', 'morning', 'afternoon', 'evening', 'night'];
 const PIN_CONFIG: Record<string, { icon: string; color: string }> = {
   construction:  { icon: '🏗️', color: '#8B6914' },
-  entertainment: { icon: '🎵', color: '#111111' },
+  entertainment: { icon: '🎵', color: '#333' },
   floor:         { icon: '🏠', color: '#646F4B' },
   traffic:       { icon: '🚗', color: '#2563EB' },
   other:         { icon: '🐕', color: '#6B7280' },
 };
 
-// ── Naver 지도 컴포넌트 ───────────────────────────────────
-function NaverMap({ lat, lng, loading, onCenterChange, onMapClick, activeFilters, timeSlot, onPinsLoaded, showHeat, osmPins }: {
+// ── Naver 지도 ─────────────────────────────────────────────
+function NaverMap({ lat, lng, loading, onCenterChange, onMapClick, activeFilters, timeSlot, onPinsLoaded, showHeat, osmPins, pinReloadKey }: {
   lat: number; lng: number; loading: boolean;
   onCenterChange?: (lat: number, lng: number) => void;
-  onMapClick?:     (lat: number, lng: number) => void;
-  activeFilters?:  string[];
-  timeSlot?:       string;
-  onPinsLoaded?:   () => void;
-  showHeat?:       boolean;
-  osmPins?:        { lat: number; lng: number; osm_type: string; name: string }[];
+  onMapClick?: (lat: number, lng: number) => void;
+  activeFilters?: string[];
+  timeSlot?: string;
+  onPinsLoaded?: () => void;
+  showHeat?: boolean;
+  osmPins?: { lat: number; lng: number; osm_type: string; name: string }[];
+  pinReloadKey?: number;
 }) {
   const mapRef           = useRef<any>(null);
   const clickPinRef      = useRef<any>(null);
@@ -44,7 +42,7 @@ function NaverMap({ lat, lng, loading, onCenterChange, onMapClick, activeFilters
 
     (window as any).navermap_authFailure = () => {
       const el = document.getElementById('naverMapEl');
-      if (el) el.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f5f7f3;gap:12px;padding:24px;text-align:center;"><span style="font-size:40px">🗺️</span><div style="font-size:14px;font-weight:700;color:#111">지도 API 인증 실패</div></div>`;
+      if (el) el.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f7faf5;gap:12px;padding:24px;text-align:center;"><span style="font-size:40px">🗺️</span><div style="font-size:14px;font-weight:700;color:#1a1e15">지도 API 인증 실패</div><div style="font-size:12px;color:#7a8570;line-height:1.6">Naver Cloud Console에서 <b>Dynamic Map</b>을 선택하고<br/><b>이 사이트 도메인</b>을 Web 서비스 URL에 등록하세요.</div></div>`;
     };
 
     const initMap = () => {
@@ -60,13 +58,15 @@ function NaverMap({ lat, lng, loading, onCenterChange, onMapClick, activeFilters
         }
         const map = new n.maps.Map(el, { center: new n.maps.LatLng(lat, lng), zoom: 15 });
         mapRef.current = map;
-        const ACTIVE_PIN_HTML = `<div style="width:24px;height:24px;background:#646F4B;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.35);"></div>`;
-        clickPinRef.current = new n.maps.Marker({ map, position: new n.maps.LatLng(lat, lng), icon: { content: ACTIVE_PIN_HTML, anchor: new n.maps.Point(12, 24) }, zIndex: 200 });
+
+        const ACTIVE_PIN = `<div style="width:24px;height:24px;background:#646F4B;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);"></div>`;
+        clickPinRef.current = new n.maps.Marker({ map, position: new n.maps.LatLng(lat, lng), icon: { content: ACTIVE_PIN, anchor: new n.maps.Point(12, 24) }, zIndex: 200 });
+
         n.maps.Event.addListener(map, 'idle', () => { const c = map.getCenter(); onCenterChange?.(c.lat(), c.lng()); });
         n.maps.Event.addListener(map, 'click', (e: any) => {
           const cLat = e.coord.lat(); const cLng = e.coord.lng();
           if (clickPinRef.current) clickPinRef.current.setMap(null);
-          clickPinRef.current = new n.maps.Marker({ map, position: new n.maps.LatLng(cLat, cLng), icon: { content: ACTIVE_PIN_HTML, anchor: new n.maps.Point(12, 24) }, zIndex: 200 });
+          clickPinRef.current = new n.maps.Marker({ map, position: new n.maps.LatLng(cLat, cLng), icon: { content: ACTIVE_PIN, anchor: new n.maps.Point(12, 24) }, zIndex: 200 });
           onMapClick?.(cLat, cLng);
         });
         loadNoisePins(map, lat, lng, n, pinsRef, onPinsLoaded);
@@ -84,7 +84,7 @@ function NaverMap({ lat, lng, loading, onCenterChange, onMapClick, activeFilters
     s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}&submodules=visualization`;
     s.onload = initMap;
     document.head.appendChild(s);
-  }, [lat, lng, loading]);
+  }, [lat, lng, loading, pinReloadKey]);
 
   useEffect(() => {
     if (!pinsRef.current.length) return;
@@ -109,7 +109,7 @@ function NaverMap({ lat, lng, loading, onCenterChange, onMapClick, activeFilters
       ];
       if (points.length === 0) { if (heatmapRef.current) { heatmapRef.current.setMap(null); heatmapRef.current = null; } return; }
       if (heatmapRef.current) heatmapRef.current.setMap(null);
-      heatmapRef.current = new n.maps.visualization.HeatMap({ map: mapRef.current, data: points, radius: 30, opacity: 0.7, gradient: ['rgba(191,210,191,0)', 'rgba(100,111,75,0.6)', '#646F4B', '#111'] });
+      heatmapRef.current = new n.maps.visualization.HeatMap({ map: mapRef.current, data: points, radius: 30, opacity: 0.7, gradient: ['rgba(191,210,191,0)', 'rgba(100,111,75,0.5)', '#646F4B', '#333'] });
     } else {
       if (heatmapRef.current) { heatmapRef.current.setMap(null); heatmapRef.current = null; }
       pinsRef.current.forEach(({ marker, noise_type, time_slot }) => {
@@ -130,22 +130,21 @@ function NaverMap({ lat, lng, loading, onCenterChange, onMapClick, activeFilters
     }
     osmPinMarkersRef.current.forEach(m => m.setMap(null));
     osmPinMarkersRef.current = [];
-    const visiblePins = osmPins.filter(pin => !activeFilters?.length || activeFilters.includes(pin.osm_type));
-    visiblePins.forEach(pin => {
+    const visible = osmPins.filter(pin => !activeFilters?.length || activeFilters.includes(pin.osm_type));
+    visible.forEach(pin => {
       const isEnt = pin.osm_type === 'entertainment';
-      const color = isEnt ? '#111111' : '#8B6914';
+      const color = isEnt ? '#333' : '#8B6914';
       const icon  = isEnt ? '🎵' : '🏗️';
-      const html = `<div style="background:${color};opacity:0.65;width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.2);border:1.5px dashed rgba(255,255,255,.7);cursor:pointer;">${icon}</div>`;
+      const html = `<div style="background:${color};opacity:0.6;width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;border:1.5px dashed rgba(255,255,255,.7);cursor:pointer;">${icon}</div>`;
       const marker = new n.maps.Marker({ map: mapRef.current, position: new n.maps.LatLng(pin.lat, pin.lng), icon: { content: html, anchor: new n.maps.Point(10, 10) }, zIndex: 50 });
-      const infoContent = `<div style="padding:8px 12px;font-family:'Pretendard',sans-serif;min-width:130px;"><div style="font-weight:700;font-size:12px;">${icon} ${pin.name}</div><div style="font-size:10px;color:#6b7260;">OSM 공공 데이터</div></div>`;
-      const infoWindow = new n.maps.InfoWindow({ content: infoContent, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(100,111,75,0.2)' });
-      n.maps.Event.addListener(marker, 'click', () => { if (infoWindow.getMap()) infoWindow.close(); else infoWindow.open(mapRef.current, marker); });
+      const info = new n.maps.InfoWindow({ content: `<div style="padding:8px 12px;font-family:'Pretendard',sans-serif;min-width:120px;"><div style="font-weight:700;font-size:12px;">${icon} ${pin.name}</div><div style="font-size:10px;color:#7a8570;">공공 데이터</div></div>`, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(100,111,75,0.2)' });
+      n.maps.Event.addListener(marker, 'click', () => { if (info.getMap()) info.close(); else info.open(mapRef.current, marker); });
       osmPinMarkersRef.current.push(marker);
     });
   }, [osmPins, activeFilters]);
 
   if (loading) return (
-    <div className={styles.mapPlaceholder}><span style={{ fontSize: 32 }}>📍</span><span>현재 위치 확인 중...</span></div>
+    <div className={styles.mapPlaceholder}><span style={{ fontSize: 36 }}>📍</span><span>현재 위치 확인 중...</span></div>
   );
   return <div id="naverMapEl" className={styles.mapEl} />;
 }
@@ -156,42 +155,62 @@ async function loadNoisePins(map: any, lat: number, lng: number, n: any, pinsRef
     const json = await res.json();
     if (pinsRef?.current) { pinsRef.current.forEach((p: any) => p.marker?.setMap(null)); pinsRef.current = []; }
     if (!json.success || !json.data?.length) { onPinsLoaded?.(); return; }
-    const timeLabel: Record<string, string> = { dawn: '새벽', morning: '오전', afternoon: '오후', evening: '저녁', night: '심야' };
-    const typeLabel: Record<string, string> = { construction: '공사 소음', entertainment: '유흥 소음', floor: '층간소음', traffic: '교통 소음', other: '기타 소음' };
-    json.data.forEach((report: any) => {
-      const cfg = PIN_CONFIG[report.noise_type] ?? PIN_CONFIG.other;
-      const size = 24 + report.severity * 2;
-      const html = `<div style="background:${cfg.color};width:${size}px;height:${size}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;font-size:${size * 0.45}px;box-shadow:0 2px 8px rgba(0,0,0,.25);border:2px solid rgba(255,255,255,.8);cursor:pointer;"><span style="transform:rotate(45deg)">${cfg.icon}</span></div>`;
-      const marker = new n.maps.Marker({ map, position: new n.maps.LatLng(report.lat, report.lng), icon: { content: html, anchor: new n.maps.Point(size / 2, size) } });
-      const infoContent = `<div style="padding:10px 14px;font-family:'Pretendard',sans-serif;min-width:140px;"><div style="font-weight:700;font-size:13px;margin-bottom:4px;">${cfg.icon} ${typeLabel[report.noise_type] ?? '소음'}</div><div style="font-size:11px;color:#6b7260;">시간대: ${timeLabel[report.time_slot] ?? ''}</div><div style="font-size:11px;color:#6b7260;">심각도: ${'★'.repeat(report.severity)}${'☆'.repeat(5 - report.severity)}</div><div style="font-size:10px;color:#aaa;margin-top:4px;">${new Date(report.created_at).toLocaleDateString('ko-KR')}</div></div>`;
-      const infoWindow = new n.maps.InfoWindow({ content: infoContent, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(100,111,75,0.2)' });
-      n.maps.Event.addListener(marker, 'click', () => { if (infoWindow.getMap()) infoWindow.close(); else infoWindow.open(map, marker); });
-      if (pinsRef?.current) pinsRef.current.push({ marker, noise_type: report.noise_type, time_slot: report.time_slot });
+    const tLabel: Record<string, string> = { dawn: '새벽', morning: '오전', afternoon: '오후', evening: '저녁', night: '심야' };
+    const nLabel: Record<string, string> = { construction: '공사 소음', entertainment: '유흥 소음', floor: '층간소음', traffic: '교통 소음', other: '기타 소음' };
+    json.data.forEach((r: any) => {
+      const cfg = PIN_CONFIG[r.noise_type] ?? PIN_CONFIG.other;
+      const sz = 24 + r.severity * 2;
+      const html = `<div style="background:${cfg.color};width:${sz}px;height:${sz}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;font-size:${sz * 0.42}px;box-shadow:0 2px 8px rgba(0,0,0,.2);border:2px solid rgba(255,255,255,.9);cursor:pointer;"><span style="transform:rotate(45deg)">${cfg.icon}</span></div>`;
+      const marker = new n.maps.Marker({ map, position: new n.maps.LatLng(r.lat, r.lng), icon: { content: html, anchor: new n.maps.Point(sz / 2, sz) } });
+      const info = new n.maps.InfoWindow({ content: `<div style="padding:10px 14px;font-family:'Pretendard',sans-serif;min-width:140px;"><div style="font-weight:700;font-size:13px;margin-bottom:4px;">${cfg.icon} ${nLabel[r.noise_type] ?? '소음'}</div><div style="font-size:11px;color:#7a8570;">시간대: ${tLabel[r.time_slot] ?? ''}</div><div style="font-size:11px;color:#7a8570;">심각도: ${'★'.repeat(r.severity)}${'☆'.repeat(5 - r.severity)}</div><div style="font-size:10px;color:#aaa;margin-top:4px;">${new Date(r.created_at).toLocaleDateString('ko-KR')}</div></div>`, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(100,111,75,0.2)' });
+      n.maps.Event.addListener(marker, 'click', () => { if (info.getMap()) info.close(); else info.open(map, marker); });
+      if (pinsRef?.current) pinsRef.current.push({ marker, noise_type: r.noise_type, time_slot: r.time_slot });
     });
     onPinsLoaded?.();
-  } catch (err) { console.error('소음 핀 로드 실패:', err); onPinsLoaded?.(); }
+  } catch { onPinsLoaded?.(); }
 }
 
-// ── 메인 컴포넌트 ─────────────────────────────────────────
+// ── 메인 ──────────────────────────────────────────────────
 export default function NoiseMapPage() {
-  const [userLat, setUserLat] = useState<number | null>(null);
-  const [userLng, setUserLng] = useState<number | null>(null);
+  const [userLat, setUserLat]   = useState<number | null>(null);
+  const [userLng, setUserLng]   = useState<number | null>(null);
   const [locLoading, setLocLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
-  const [reverseGeocoding, setReverseGeocoding] = useState(false);
-  const [noiseStats, setNoiseStats] = useState<Record<string, number> | null>(null);
+  const [reverseGeo, setReverseGeo]   = useState(false);
+  const [noiseStats, setNoiseStats]   = useState<Record<string, number> | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [timeSlotIdx, setTimeSlotIdx] = useState(-1);
-  const [mapView, setMapView] = useState<'pin' | 'heat'>('pin');
-  const [osmPins, setOsmPins] = useState<any[]>([]);
+  const [timeSlotIdx, setTimeSlotIdx]     = useState(-1);
+  const [mapView, setMapView]     = useState<'pin' | 'heat'>('pin');
+  const [osmPins, setOsmPins]     = useState<any[]>([]);
   const [pinReloadKey, setPinReloadKey] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
-  const [reportOk, setReportOk] = useState(false);
-  const [reportLat, setReportLat] = useState<number | null>(null);
-  const [reportLng, setReportLng] = useState<number | null>(null);
+  const [reportOk, setReportOk]     = useState(false);
+  const [reportLat, setReportLat]   = useState<number | null>(null);
+  const [reportLng, setReportLng]   = useState<number | null>(null);
+  // 소음 알림 기능
+  const [watchedAddresses, setWatchedAddresses]   = useState<{ address: string; lat: number; lng: number }[]>([]);
+  const [notifPermission, setNotifPermission]     = useState<NotificationPermission>('default');
+  const [sessionId] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const ex = localStorage.getItem('moveiq_session_id');
+    if (ex) return ex;
+    const id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+    localStorage.setItem('moveiq_session_id', id);
+    return id;
+  });
 
   useEffect(() => {
+    // 알림 권한 상태 확인
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotifPermission(Notification.permission);
+    }
+    // 관심 주소 불러오기
+    try {
+      const saved = JSON.parse(localStorage.getItem('moveiq_watched') ?? '[]');
+      if (saved.length) setWatchedAddresses(saved);
+    } catch {}
+    // 위치 요청
     navigator.geolocation?.getCurrentPosition(
       p => { setUserLat(p.coords.latitude); setUserLng(p.coords.longitude); setLocLoading(false); loadNoiseStats(p.coords.latitude, p.coords.longitude); },
       () => { setUserLat(37.5665); setUserLng(126.9780); setLocLoading(false); loadNoiseStats(37.5665, 126.9780); },
@@ -215,19 +234,53 @@ export default function NoiseMapPage() {
       if (osmJson.success && osmJson.traffic) counts.traffic += 1;
       if (osmJson.success && osmJson.pins?.length) setOsmPins(osmJson.pins); else setOsmPins([]);
       setNoiseStats({ ...counts });
+      checkAlerts(lat, lng, counts);
     } catch { /* silent */ } finally { setStatsLoading(false); }
   }
 
-  async function handleMapClick(clickLat: number, clickLng: number) {
-    setReportLat(clickLat); setReportLng(clickLng);
-    setUserLat(clickLat); setUserLng(clickLng);
-    setReverseGeocoding(true);
-    loadNoiseStats(clickLat, clickLng);
+  async function requestNotif() {
+    if (!('Notification' in window)) return;
+    const p = await Notification.requestPermission();
+    setNotifPermission(p);
+  }
+
+  function addWatch() {
+    if (!searchInput.trim() || userLat == null || userLng == null) return;
+    const entry = { address: searchInput.trim(), lat: userLat, lng: userLng };
+    const next = [...watchedAddresses.filter(w => w.address !== entry.address), entry];
+    setWatchedAddresses(next);
+    localStorage.setItem('moveiq_watched', JSON.stringify(next));
+  }
+
+  function removeWatch(address: string) {
+    const next = watchedAddresses.filter(w => w.address !== address);
+    setWatchedAddresses(next);
+    localStorage.setItem('moveiq_watched', JSON.stringify(next));
+  }
+
+  function checkAlerts(lat: number, lng: number, stats: Record<string, number>) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const total = Object.values(stats).reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      const key = `moveiq_alert_${lat.toFixed(3)}_${lng.toFixed(3)}`;
+      const prev = Number(localStorage.getItem(key) ?? 0);
+      if (total > prev) {
+        new Notification('🔊 무브IQ 소음 알림', { body: `관심 지역에 소음 데이터 ${total}건 감지됨.`, icon: '/favicon.ico' });
+        localStorage.setItem(key, String(total));
+      }
+    }
+  }
+
+  async function handleMapClick(cLat: number, cLng: number) {
+    setReportLat(cLat); setReportLng(cLng);
+    setUserLat(cLat); setUserLng(cLng);
+    setReverseGeo(true);
+    loadNoiseStats(cLat, cLng);
     try {
-      const res = await fetch(`/api/geocode?lat=${clickLat}&lng=${clickLng}`);
+      const res = await fetch(`/api/geocode?lat=${cLat}&lng=${cLng}`);
       const json = await res.json();
       if (json.success && json.roadAddress) setSearchInput(json.roadAddress);
-    } catch { /* silent */ } finally { setReverseGeocoding(false); }
+    } catch { /* silent */ } finally { setReverseGeo(false); }
   }
 
   async function searchLocation() {
@@ -238,38 +291,39 @@ export default function NoiseMapPage() {
       const res = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`);
       const json = await res.json();
       if (json.lat && json.lng) { setUserLat(json.lat); setUserLng(json.lng); loadNoiseStats(json.lat, json.lng); }
-      else alert('주소를 찾을 수 없습니다.');
-    } catch { alert('검색 오류가 발생했습니다.'); } finally { setLocLoading(false); }
+      else alert('주소를 찾을 수 없습니다. 다시 확인해 주세요.');
+    } catch { alert('검색 중 오류가 발생했습니다.'); }
+    finally { setLocLoading(false); }
   }
 
   async function submitReport(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
     try {
-      const submitLat = reportLat ?? userLat ?? 37.5665;
-      const submitLng = reportLng ?? userLng ?? 126.9780;
-      const res = await fetch('/api/noise-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ noise_type: d.get('noise_type'), time_slot: d.get('time_slot'), severity: Number(d.get('severity')), lat: submitLat, lng: submitLng, description: d.get('description') }) });
+      const sLat = reportLat ?? userLat ?? 37.5665;
+      const sLng = reportLng ?? userLng ?? 126.9780;
+      const res = await fetch('/api/noise-reports', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noise_type: d.get('noise_type'), time_slot: d.get('time_slot'), severity: Number(d.get('severity')), lat: sLat, lng: sLng, description: d.get('description') }),
+      });
       const json = await res.json();
-      if (json.success) { setReportOk(true); setPinReloadKey(k => k + 1); loadNoiseStats(submitLat, submitLng); }
+      if (json.success) { setReportOk(true); setPinReloadKey(k => k + 1); loadNoiseStats(sLat, sLng); }
       else alert(json.message);
     } catch { alert('제보 저장에 실패했습니다.'); }
   }
 
   return (
     <div className={styles.root}>
-      {/* ── 헤더 ── */}
+      {/* 헤더 */}
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <Link href="/" className={styles.logo}>
-            <div className={styles.logoMark}/>
-            <span>무브IQ</span>
-          </Link>
+          <Link href="/" className={styles.logo}><div className={styles.logoMark} /><span>무브IQ</span></Link>
           <form className={styles.searchForm} onSubmit={e => { e.preventDefault(); searchLocation(); }}>
             <input
-              value={reverseGeocoding ? '주소 불러오는 중...' : searchInput}
+              value={reverseGeo ? '주소 불러오는 중...' : searchInput}
               onChange={e => setSearchInput(e.target.value)}
               placeholder="지도 클릭 또는 주소 입력"
-              readOnly={reverseGeocoding}
+              readOnly={reverseGeo}
               className={styles.searchInput}
             />
             <button type="submit" className={styles.searchBtn}>검색</button>
@@ -283,26 +337,23 @@ export default function NoiseMapPage() {
         </div>
       </header>
 
-      {/* ── 레이아웃 ── */}
       <div className={styles.layout}>
-        {/* 사이드바 */}
+        {/* ── 사이드바 ── */}
         <aside className={styles.sidebar}>
           <div className={styles.sidebarContent}>
             <div className={styles.sidebarSection}>
-              <div className={styles.sectionTitle}>🔊 실시간 소음 현황</div>
-              <p className={styles.sectionDesc}>
-                현재 위치 기준 소음 제보 현황입니다.<br/>
-                핀을 클릭해 상세 정보를 확인하세요.
-              </p>
+              <div className={styles.sectionTitle}>🔊 실시간 소음 지도</div>
+              <p className={styles.sectionDesc}>현재 위치 기준 소음 제보 현황입니다. 핀을 클릭해 상세 정보를 확인하세요.</p>
               <p className={styles.mapHint}>💡 지도를 클릭하면 해당 위치로 자동 검색됩니다</p>
             </div>
 
+            {/* 소음 통계 */}
             <div className={styles.statsBox}>
               {statsLoading ? (
                 <div className={styles.statsLoading}>현황 불러오는 중...</div>
               ) : noiseStats ? (
                 [
-                  ['🎵 유흥 소음', noiseStats.entertainment, 'var(--text)'],
+                  ['🎵 유흥 소음', noiseStats.entertainment, '#333'],
                   ['🏗️ 공사 소음', noiseStats.construction,  'var(--main)'],
                   ['🚗 교통 소음', noiseStats.traffic,        'var(--muted)'],
                   ['🏠 층간소음',  noiseStats.floor,          'var(--muted)'],
@@ -310,13 +361,43 @@ export default function NoiseMapPage() {
                 ].map(([l, v, c]) => (
                   <div key={l as string} className={styles.statsRow}>
                     <span>{l}</span>
-                    <strong style={{ color: (v as number) > 0 ? c as string : 'var(--muted)' }}>
+                    <strong style={{ color: (v as number) > 0 ? c as string : 'var(--muted2)' }}>
                       {(v as number) > 0 ? `${v}건` : '없음'}
                     </strong>
                   </div>
                 ))
               ) : (
                 <div className={styles.statsLoading}>위치 확인 후 표시됩니다.</div>
+              )}
+            </div>
+
+            {/* 소음 알림 */}
+            <div className={styles.alertSection}>
+              <div className={styles.alertTitle}>
+                🔔 소음 알림
+                {notifPermission !== 'granted' && (
+                  <button className={styles.btnAlertPermit} onClick={requestNotif}>알림 허용</button>
+                )}
+              </div>
+              {notifPermission === 'denied' && <p className={styles.alertDenied}>브라우저 설정에서 알림을 허용해주세요.</p>}
+              {searchInput.trim() && userLat != null && (
+                <button className={styles.btnAddWatch} onClick={addWatch}>
+                  📌 "{searchInput.trim().slice(0, 14)}{searchInput.trim().length > 14 ? '…' : ''}" 알림 등록
+                </button>
+              )}
+              {watchedAddresses.length > 0 ? (
+                <ul className={styles.watchList}>
+                  {watchedAddresses.map(w => (
+                    <li key={w.address} className={styles.watchItem}>
+                      <button className={styles.watchAddr} onClick={() => { setUserLat(w.lat); setUserLng(w.lng); setSearchInput(w.address); loadNoiseStats(w.lat, w.lng); }}>
+                        📍 {w.address.slice(0, 20)}{w.address.length > 20 ? '…' : ''}
+                      </button>
+                      <button className={styles.watchDel} onClick={() => removeWatch(w.address)}>✕</button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={styles.watchEmpty}>주소를 검색한 후 알림을 등록하세요.</p>
               )}
             </div>
 
@@ -340,30 +421,26 @@ export default function NoiseMapPage() {
               </div>
             </div>
 
-            <button className={styles.btnReport} onClick={() => setReportOpen(true)}>
-              + 소음 제보하기
-            </button>
+            <button className={styles.btnReport} onClick={() => setReportOpen(true)}>+ 소음 제보하기</button>
           </div>
         </aside>
 
-        {/* 지도 영역 */}
+        {/* ── 지도 영역 ── */}
         <div className={styles.mapArea}>
-          {/* 툴바 */}
           <div className={styles.toolbar}>
             <div className={styles.filterChips}>
-              {(Object.keys(FILTER_TYPE_MAP) as (keyof typeof FILTER_TYPE_MAP)[]).map(f => {
+              {(Object.keys(FILTER_TYPE_MAP) as string[]).map(f => {
                 const type = FILTER_TYPE_MAP[f];
-                const isActive = activeFilters.length === 0 || activeFilters.includes(type);
+                const isOn = activeFilters.length === 0 || activeFilters.includes(type);
                 return (
-                  <button
-                    key={f}
-                    className={`${styles.chip} ${isActive ? styles.chipOn : styles.chipOff}`}
+                  <button key={f} className={`${styles.chip} ${isOn ? styles.chipOn : styles.chipOff}`}
                     onClick={() => setActiveFilters(prev => {
                       if (prev.length === 0) return [type];
                       const next = prev.filter(t => t !== type);
                       return next;
-                    })}
-                  >{f}</button>
+                    })}>
+                    {f}
+                  </button>
                 );
               })}
             </div>
@@ -378,26 +455,24 @@ export default function NoiseMapPage() {
             lat={userLat ?? 37.5665}
             lng={userLng ?? 126.9780}
             loading={locLoading}
-            onCenterChange={(lat, lng) => { /* 필요시 사용 */ }}
+            onCenterChange={() => {}}
             onMapClick={handleMapClick}
             activeFilters={activeFilters}
             timeSlot={timeSlotIdx >= 0 ? TIME_SLOTS[timeSlotIdx] : 'all'}
             showHeat={mapView === 'heat'}
             osmPins={osmPins}
+            pinReloadKey={pinReloadKey}
           />
 
-          {/* 시간대 슬라이더 */}
           <div className={styles.timeBar}>
             <div className={styles.timeBarLabel}>
               시간대 필터
-              {timeSlotIdx >= 0 && (
-                <button className={styles.btnReset} onClick={() => setTimeSlotIdx(-1)}>전체</button>
-              )}
+              {timeSlotIdx >= 0 && <button className={styles.btnReset} onClick={() => setTimeSlotIdx(-1)}>전체 보기</button>}
             </div>
             <input type="range" min="-1" max="4" value={timeSlotIdx} onChange={e => setTimeSlotIdx(Number(e.target.value))} className={styles.timeRange} />
             <div className={styles.timeTicks}>
               {['전체', '새벽', '오전', '오후', '저녁', '심야'].map((t, i) => (
-                <span key={t} style={{ color: timeSlotIdx === i - 1 ? 'var(--main)' : '' }}>{t}</span>
+                <span key={t} style={{ color: timeSlotIdx === i - 1 ? 'var(--main)' : '', fontWeight: timeSlotIdx === i - 1 ? '700' : '' }}>{t}</span>
               ))}
             </div>
           </div>
@@ -407,7 +482,7 @@ export default function NoiseMapPage() {
       {/* FAB */}
       <button className={styles.fab} onClick={() => setReportOpen(true)}>+ 소음 제보하기</button>
 
-      {/* 하단 모바일 네비 */}
+      {/* 모바일 하단 네비 */}
       <nav className={styles.mobileNav}>
         <Link href="/"          className={styles.mobileNavBtn}><span>🏠</span>홈</Link>
         <Link href="/noise-map" className={`${styles.mobileNavBtn} ${styles.mobileNavActive}`}><span>🔊</span>소음 지도</Link>
@@ -425,8 +500,8 @@ export default function NoiseMapPage() {
                 <div className={styles.modalHead}><h3>🔊 소음 제보하기</h3><button onClick={() => { setReportOpen(false); setReportOk(false); }}>✕</button></div>
                 <div className={styles.reportLoc}>
                   {reportLat != null
-                    ? <><span className={`${styles.locDot} ${styles.locDotGreen}`}/><span>📍 지도 클릭 위치 ({reportLat.toFixed(4)}, {reportLng?.toFixed(4)})</span></>
-                    : <><span className={styles.locDot}/><span>📍 현재 위치 기준 — 지도를 클릭해 위치를 변경할 수 있습니다</span></>
+                    ? <><span className={`${styles.locDot} ${styles.locDotGreen}`} /><span>📍 지도 클릭 위치 ({reportLat.toFixed(4)}, {reportLng?.toFixed(4)})</span></>
+                    : <><span className={styles.locDot} /><span>📍 현재 위치 기준 — 지도를 클릭해 위치를 변경할 수 있습니다</span></>
                   }
                 </div>
                 <form onSubmit={submitReport}>
