@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import AuthButton from '@/app/components/AuthButton';
+import Link from 'next/link';
 import styles from './community.module.css';
 
 const SAMPLE_POSTS: any[] = [];

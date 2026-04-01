@@ -1,0 +1,119 @@
+/* noise-map.module.css */
+.root { display: flex; flex-direction: column; height: 100vh; background: var(--bg); }
+
+/* 헤더 */
+.header { position: fixed; top:0; left:0; right:0; z-index:200; height:var(--header-h); background:rgba(255,255,255,.97); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); box-shadow:0 1px 8px rgba(0,0,0,.05); }
+.headerInner { max-width:100%; height:100%; display:flex; align-items:center; gap:12px; padding:0 20px; }
+.logo { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:800; color:var(--main); flex-shrink:0; }
+.logoMark { width:28px; height:28px; background:var(--main); border-radius:7px; position:relative; }
+.logoMark::after { content:''; position:absolute; inset:6px; background:var(--sub); border-radius:50%; }
+.searchForm { flex:1; max-width:380px; display:flex; align-items:center; background:var(--bg2); border:1.5px solid var(--border); border-radius:24px; padding:5px 8px 5px 14px; transition:all .2s; }
+.searchForm:focus-within { border-color:var(--main); background:#fff; }
+.searchInput { flex:1; border:none; background:none; outline:none; font-size:13px; color:var(--text); }
+.searchInput::placeholder { color:var(--muted); }
+.searchBtn { background:var(--main); color:#fff; border:none; cursor:pointer; font-size:12px; font-weight:700; padding:5px 12px; border-radius:18px; transition:background .2s; }
+.searchBtn:hover { background:var(--main-dark,#4a5236); }
+.nav { display:flex; gap:2px; flex-shrink:0; margin-left:auto; }
+.navLink { font-size:13px; font-weight:500; color:var(--muted); padding:6px 12px; border-radius:18px; transition:all .15s; }
+.navLink:hover { color:var(--main); background:var(--sub-light); }
+.navActive { color:var(--main) !important; font-weight:700 !important; background:var(--sub-light) !important; }
+
+/* 레이아웃 */
+.layout { display:flex; height:calc(100vh - var(--header-h)); margin-top:var(--header-h); }
+
+/* 사이드바 */
+.sidebar { width:360px; flex-shrink:0; border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; background:#fff; }
+.sidebarContent { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px; }
+.sidebarSection { }
+.sectionTitle { font-size:13px; font-weight:700; color:var(--text); margin-bottom:6px; }
+.sectionDesc { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:6px; }
+.mapHint { font-size:11px; color:var(--muted); background:var(--bg2); padding:6px 10px; border-radius:6px; }
+
+/* 소음 통계 */
+.statsBox { background:var(--bg2); border-radius:10px; padding:12px 14px; border:1px solid var(--border); }
+.statsLoading { font-size:12px; color:var(--muted); text-align:center; padding:8px 0; }
+.statsRow { display:flex; justify-content:space-between; align-items:center; font-size:12px; padding:5px 0; }
+.statsRow span { color:var(--muted); }
+.statsRow strong { font-size:13px; font-weight:700; }
+
+/* 민원 가이드 */
+.complaintGrid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; }
+.complaintCard { background:var(--bg2); border-radius:8px; padding:10px 8px; display:flex; flex-direction:column; gap:3px; }
+.complaintIcon { font-size:18px; }
+.complaintType { font-size:11px; font-weight:700; color:var(--text); }
+.complaintTel { font-size:11px; color:var(--main); font-weight:700; }
+.complaintLink { font-size:10px; color:var(--muted); }
+.complaintLink:hover { color:var(--main); }
+
+.btnReport { width:100%; padding:12px; background:var(--main); color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; transition:background .2s; }
+.btnReport:hover { background:#4a5236; }
+
+/* 지도 영역 */
+.mapArea { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.toolbar { display:flex; align-items:center; gap:8px; padding:10px 16px; border-bottom:1px solid var(--border); flex-wrap:wrap; background:#fff; }
+.filterChips { display:flex; gap:4px; flex-wrap:wrap; flex:1; }
+.chip { background:var(--bg2); border:1px solid var(--border); color:var(--muted); font-size:11px; padding:4px 10px; border-radius:16px; cursor:pointer; transition:all .15s; }
+.chipOn { color:var(--main); border-color:var(--main); background:var(--sub-light); font-weight:600; }
+.chipOff { opacity:.38; }
+.viewToggle { display:flex; gap:2px; background:var(--bg2); border-radius:6px; padding:3px; }
+.vBtn { background:none; border:none; cursor:pointer; font-size:11px; color:var(--muted); padding:4px 10px; border-radius:4px; }
+.vBtnActive { background:#fff; color:var(--main); font-weight:700; }
+.mapEl { flex:1; min-height:0; width:100%; }
+.mapPlaceholder { flex:1; min-height:300px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; background:var(--bg2); font-size:14px; color:var(--muted); }
+
+/* 시간대 바 */
+.timeBar { padding:10px 16px; border-top:1px solid var(--border); background:#fff; }
+.timeBarLabel { font-size:11px; color:var(--muted); margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+.btnReset { font-size:10px; background:none; border:1px solid var(--muted); border-radius:4px; padding:1px 6px; cursor:pointer; color:var(--muted); }
+.btnReset:hover { color:var(--main); border-color:var(--main); }
+.timeRange { width:100%; accent-color:var(--main); }
+.timeTicks { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-top:4px; }
+
+/* FAB */
+.fab { position:fixed; bottom:84px; right:20px; z-index:150; background:var(--main); color:#fff; border:none; cursor:pointer; font-size:13px; font-weight:700; padding:12px 18px; border-radius:28px; box-shadow:0 6px 20px rgba(100,111,75,.3); }
+.fab:hover { background:#4a5236; }
+
+/* 모달 */
+.modalBg { position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.5); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:20px; }
+.modal { background:#fff; border-radius:20px; padding:28px; max-width:460px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 16px 48px rgba(0,0,0,.12); }
+.modalHead { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.modalHead h3 { font-size:17px; font-weight:700; }
+.modalHead button { background:var(--bg2); border:none; cursor:pointer; width:28px; height:28px; border-radius:50%; font-size:14px; color:var(--muted); }
+.reportLoc { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); background:var(--bg2); border-radius:6px; padding:7px 12px; margin-bottom:16px; line-height:1.4; }
+.locDot { width:8px; height:8px; border-radius:50%; background:#aaa; flex-shrink:0; }
+.locDotGreen { background:var(--main); }
+.formGroup { margin-bottom:14px; }
+.formGroup label { font-size:12px; color:var(--muted); margin-bottom:6px; display:block; }
+.formInput { width:100%; background:var(--bg2); border:1.5px solid var(--border); color:var(--text); font-size:14px; padding:10px 14px; border-radius:10px; outline:none; resize:none; font-family:'Pretendard',sans-serif; }
+.formInput:focus { border-color:var(--main); }
+.btnSubmit { width:100%; padding:13px; background:var(--main); color:#fff; border:none; cursor:pointer; font-size:15px; font-weight:700; border-radius:12px; margin-top:8px; }
+.btnSubmit:hover { background:#4a5236; }
+.successState { text-align:center; padding:32px 16px; }
+.successState div { font-size:48px; margin-bottom:12px; }
+.successState h3 { font-size:18px; font-weight:700; margin-bottom:6px; }
+.successState p { font-size:13px; color:var(--muted); margin-bottom:20px; }
+
+/* 모바일 하단 네비 */
+.mobileNav { display:none; }
+
+@media (max-width:768px) {
+  .layout { flex-direction:column; height:auto; }
+  .sidebar { width:100%; border-right:none; border-top:1px solid var(--border); order:2; max-height:260px; overflow-y:auto; }
+  .mapArea { order:1; height:50vh; min-height:300px; }
+  .nav { display:none; }
+  .mobileNav {
+    display:flex; position:fixed; bottom:0; left:0; right:0; z-index:300;
+    background:rgba(255,255,255,.97); backdrop-filter:blur(12px);
+    border-top:1px solid var(--border); height:64px; padding:0 8px;
+  }
+  .mobileNavBtn {
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; background:none; border:none; cursor:pointer; color:var(--muted);
+    font-size:10px; font-weight:500; font-family:'Pretendard',sans-serif;
+  }
+  .mobileNavBtn span { font-size:20px; }
+  .mobileNavActive { color:var(--main) !important; font-weight:700 !important; }
+  .fab { bottom:72px; }
+  .modalBg { align-items:flex-end; padding:0; }
+  .modal { border-radius:20px 20px 0 0; max-width:100%; padding:20px 20px 32px; max-height:85vh; }
+}

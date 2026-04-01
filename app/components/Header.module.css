@@ -1,0 +1,120 @@
+/* Header.module.css */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: var(--header-h);
+  backdrop-filter: blur(16px);
+  transition: background .3s, border-color .3s;
+}
+.headerLanding {
+  background: rgba(0,0,0,0.72);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.headerApp {
+  background: rgba(255,255,255,0.97);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 8px rgba(0,0,0,.05);
+}
+.inner {
+  max-width: 1200px; margin: 0 auto;
+  height: 100%; display: flex; align-items: center; gap: 16px;
+  padding: 0 24px;
+}
+.logo {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.logoMark {
+  width: 32px; height: 32px;
+  background: var(--main); border-radius: 8px;
+  position: relative;
+}
+.logoMark::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  background: var(--sub);
+  border-radius: 50%;
+}
+.logoText {
+  font-size: 17px; font-weight: 800; letter-spacing: -.3px;
+  color: var(--main);
+}
+.headerLanding .logoText { color: #fff; }
+
+/* 검색폼 */
+.searchForm {
+  flex: 1; max-width: 440px; margin: 0 auto;
+  display: flex; align-items: center;
+  background: var(--bg2); border: 1.5px solid var(--border);
+  border-radius: 28px; padding: 6px 8px 6px 16px;
+  transition: all .2s;
+}
+.searchForm:focus-within {
+  border-color: var(--main); background: #fff;
+  box-shadow: 0 0 0 3px rgba(100,111,75,.1);
+}
+.searchInput {
+  flex: 1; border: none; background: none; outline: none;
+  font-size: 14px; color: var(--text);
+}
+.searchInput::placeholder { color: var(--muted); }
+.searchBtn {
+  background: var(--main); color: #fff; border: none; cursor: pointer;
+  width: 30px; height: 30px; border-radius: 50%; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background .2s;
+}
+.searchBtn:hover { background: var(--main-dark); }
+
+/* 데스크탑 네비 */
+.nav {
+  display: flex; gap: 4px; align-items: center; flex-shrink: 0;
+}
+.navLink {
+  font-size: 14px; font-weight: 500;
+  color: var(--muted); padding: 7px 14px; border-radius: 20px;
+  transition: all .15s; white-space: nowrap;
+}
+.navLink:hover { color: var(--main); background: var(--sub-light); }
+.navLink.active { color: var(--main); font-weight: 700; background: var(--sub-light); }
+.headerLanding .navLink { color: rgba(255,255,255,.7); }
+.headerLanding .navLink:hover { color: #fff; background: rgba(255,255,255,.1); }
+.headerLanding .navLink.active { color: #fff; background: rgba(255,255,255,.15); }
+
+.actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+/* 햄버거 */
+.hamburger {
+  display: none; flex-direction: column; justify-content: center; gap: 5px;
+  width: 36px; height: 36px; background: none; border: none; cursor: pointer;
+  padding: 6px; border-radius: 8px;
+}
+.hamburger span {
+  display: block; height: 2px; background: var(--main);
+  border-radius: 2px; transition: all .2s;
+}
+.headerLanding .hamburger span { background: #fff; }
+
+/* 모바일 메뉴 */
+.mobileMenu {
+  display: flex; flex-direction: column;
+  background: rgba(255,255,255,.98); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+}
+.mobileLink {
+  padding: 14px 24px; font-size: 15px; font-weight: 500; color: var(--text);
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.mobileLink:last-child { border-bottom: none; }
+.mobileLink:hover { background: var(--bg2); color: var(--main); }
+
+@media (max-width: 768px) {
+  .hamburger { display: flex; }
+  .nav { display: none; }
+  .searchForm { max-width: none; }
+  .inner { padding: 0 16px; gap: 10px; }
+}
+@media (max-width: 480px) {
+  .searchForm { display: none; }
+}

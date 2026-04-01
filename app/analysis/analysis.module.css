@@ -1,0 +1,144 @@
+/* analysis.module.css */
+.root { display:flex; flex-direction:column; min-height:100vh; background:var(--bg2); }
+.loading { display:flex; align-items:center; justify-content:center; padding:80px; color:var(--muted); font-size:14px; }
+
+/* 헤더 */
+.header { position:fixed; top:0; left:0; right:0; z-index:200; height:var(--header-h); background:rgba(255,255,255,.97); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); box-shadow:0 1px 8px rgba(0,0,0,.05); }
+.headerInner { max-width:900px; margin:0 auto; height:100%; display:flex; align-items:center; gap:16px; padding:0 24px; }
+.logo { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:800; color:var(--main); flex-shrink:0; }
+.logoMark { width:28px; height:28px; background:var(--main); border-radius:7px; position:relative; }
+.logoMark::after { content:''; position:absolute; inset:6px; background:var(--sub); border-radius:50%; }
+.nav { display:flex; gap:2px; flex-shrink:0; margin-left:auto; }
+.navLink { font-size:13px; font-weight:500; color:var(--muted); padding:6px 12px; border-radius:18px; transition:all .15s; }
+.navLink:hover { color:var(--main); background:var(--sub-light); }
+.navActive { color:var(--main) !important; font-weight:700 !important; background:var(--sub-light) !important; }
+
+/* 메인 영역 */
+.page { max-width:800px; margin:0 auto; width:100%; padding:calc(var(--header-h) + 32px) 24px 120px; }
+
+/* 검색 박스 */
+.searchBox { background:#fff; border-radius:16px; padding:24px; border:1px solid var(--border); box-shadow:0 2px 12px rgba(100,111,75,.06); margin-bottom:24px; }
+.searchRow { display:flex; gap:10px; margin-bottom:14px; }
+.searchInput { flex:1; padding:13px 18px; background:var(--bg2); border:1.5px solid var(--border); border-radius:var(--r); font-size:15px; outline:none; font-family:'Pretendard',sans-serif; transition:all .2s; }
+.searchInput:focus { border-color:var(--main); background:#fff; box-shadow:0 0 0 3px rgba(100,111,75,.1); }
+.btnAnalyze { padding:13px 24px; background:var(--main); color:#fff; border:none; cursor:pointer; border-radius:var(--r); font-size:14px; font-weight:700; white-space:nowrap; transition:background .2s; font-family:'Pretendard',sans-serif; }
+.btnAnalyze:hover { background:#4a5236; }
+.quickChips, .recentRow { display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:12px; color:var(--muted); }
+.recentRow { margin-top:8px; padding-top:10px; border-top:1px solid var(--border); }
+.quickLabel, .recentLabel { font-size:12px; font-weight:600; color:var(--muted); flex-shrink:0; }
+.chip { background:var(--bg2); border:1px solid var(--border); color:var(--muted); font-size:12px; padding:5px 12px; border-radius:20px; cursor:pointer; transition:all .15s; font-family:'Pretendard',sans-serif; }
+.chip:hover { color:var(--main); border-color:var(--main); }
+.chipRecent { color:var(--text); }
+.btnClear { font-size:11px; color:var(--muted); background:none; border:none; cursor:pointer; padding:2px 4px; text-decoration:underline; font-family:'Pretendard',sans-serif; }
+.btnClear:hover { color:#c0392b; }
+
+/* 로딩 */
+.loadingBox { background:#fff; border-radius:16px; padding:32px 24px; text-align:center; border:1px solid var(--border); }
+.spinner { width:32px; height:32px; border:3px solid rgba(100,111,75,.2); border-top-color:var(--main); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 20px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loadingSteps { display:flex; flex-direction:column; gap:8px; max-width:240px; margin:0 auto; text-align:left; }
+.lstep { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
+.lstepDone  { color:var(--main); }
+.lstepActive { color:var(--text); font-weight:600; }
+
+/* 결과 박스 */
+.resultBox { background:#fff; border-radius:16px; padding:28px; border:1px solid var(--border); box-shadow:0 2px 12px rgba(100,111,75,.06); animation:fadeUp .4s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.sampleBadge { background:rgba(100,111,75,.08); border:1px solid rgba(100,111,75,.2); border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12px; color:var(--muted); }
+.resultHeader { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+.resultAddr { font-size:15px; font-weight:700; }
+.scoreBadge { display:flex; align-items:center; gap:8px; background:var(--sub-light); border:1px solid rgba(100,111,75,.2); padding:8px 16px; border-radius:24px; flex-shrink:0; }
+.scoreBig { font-size:24px; font-weight:900; color:var(--main); }
+.scoreGrade { font-size:13px; color:var(--muted); }
+
+/* 탭 */
+.tabs { display:flex; gap:2px; background:var(--bg2); border-radius:10px; padding:4px; margin-bottom:20px; overflow-x:auto; }
+.tab { background:none; border:none; cursor:pointer; font-size:12px; color:var(--muted); padding:7px 13px; border-radius:7px; white-space:nowrap; font-family:'Pretendard',sans-serif; transition:all .15s; }
+.tabActive { background:#fff; color:var(--main); font-weight:700; }
+
+/* 점수 그리드 */
+.scoreGrid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+.scoreCard { background:var(--bg2); border-radius:10px; padding:14px; }
+.scLabel { font-size:11px; color:var(--muted); margin-bottom:4px; }
+.scVal { font-size:22px; font-weight:900; margin-bottom:4px; }
+.scBar { height:4px; background:rgba(100,111,75,.12); border-radius:2px; }
+.scFill { height:100%; border-radius:2px; transition:width 1s ease; }
+
+/* AI 박스 */
+.aiBox { background:var(--sub-light); border:1px solid rgba(100,111,75,.15); border-radius:10px; padding:14px; margin-bottom:16px; display:flex; gap:10px; align-items:flex-start; }
+.aiBox p { font-size:13px; line-height:1.75; color:var(--text2); }
+
+/* 비교 */
+.compareTitle { font-size:13px; font-weight:700; color:var(--muted); margin-bottom:8px; }
+.compareGrid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+.compareItem { display:flex; align-items:center; justify-content:space-between; background:var(--bg2); border-radius:8px; padding:10px 12px; }
+.compareName { font-size:13px; font-weight:600; margin-bottom:2px; }
+.compareNote { font-size:11px; color:var(--muted); }
+.compareScore { font-size:14px; font-weight:900; color:var(--main); flex-shrink:0; }
+
+/* PDF CTA */
+.pdfCta { background:var(--sub-light); border:1px solid rgba(100,111,75,.2); border-radius:10px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.pdfCta strong { color:var(--main); font-size:13px; display:block; }
+.pdfCta small { color:var(--muted); font-size:11px; }
+.btnPdf { background:var(--main); color:#fff; border:none; cursor:pointer; font-size:13px; font-weight:700; padding:9px 16px; border-radius:8px; font-family:'Pretendard',sans-serif; }
+.btnPdf:disabled { opacity:.5; cursor:not-allowed; }
+
+/* 소음 패널 */
+.noisePanel { }
+.panelTitle { font-size:12px; color:var(--muted); font-weight:600; margin-bottom:12px; text-transform:uppercase; letter-spacing:.5px; }
+.timeRow { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.timeLabel { font-size:11px; color:var(--muted); width:80px; flex-shrink:0; }
+.timeBarW { flex:1; height:7px; background:var(--bg3); border-radius:4px; overflow:hidden; }
+.timeBarF { height:100%; border-radius:4px; transition:width 1s ease; }
+.timeNote { font-size:10px; color:var(--muted); width:90px; flex-shrink:0; }
+
+/* 학군 */
+.schoolList { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.schoolItem { display:flex; justify-content:space-between; align-items:flex-start; background:var(--bg2); border-radius:8px; padding:12px; }
+.schoolType { font-size:10px; background:var(--sub-light); color:var(--main); border-radius:4px; padding:1px 6px; font-weight:700; margin-right:6px; }
+.schoolName { font-size:13px; font-weight:700; }
+.schoolDist { font-size:11px; color:var(--muted); margin-left:6px; }
+.schoolRating { display:block; font-size:13px; font-weight:700; color:var(--main); }
+.schoolNote { display:block; font-size:10px; color:var(--muted); margin-top:2px; }
+
+/* 후기 */
+.reviewItem { background:var(--bg2); border-radius:10px; padding:14px; margin-bottom:10px; }
+.reviewHeader { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+.reviewAuthor { font-size:12px; font-weight:700; }
+.reviewStars { font-size:12px; color:#f39c12; }
+.reviewDate { font-size:11px; color:var(--muted); margin-left:auto; }
+.btnGoComm { display:inline-block; margin-top:12px; padding:10px 20px; background:var(--main); color:#fff; border-radius:8px; font-size:13px; font-weight:700; }
+
+/* 전세 */
+.jeonseRiskBadge { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; padding:12px 16px; border-radius:10px; }
+.jeonseRisk_high   { background:#fdecea; color:#c0392b; }
+.jeonseRisk_medium { background:#fef9e7; color:#d68910; }
+.jeonseRisk_low    { background:#eafaf1; color:#1e8449; }
+.jeonseChecklist { margin-top:16px; }
+.jeonseCheckItem { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; line-height:1.55; }
+.jeonseCheckItem:last-child { border-bottom:none; }
+.jeonseNum { width:20px; height:20px; background:var(--main); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; margin-top:2px; }
+.jeonseManual { background:var(--bg2); border-radius:10px; padding:14px; margin-top:16px; }
+
+/* 빈 상태 */
+.noData { text-align:center; padding:32px; color:var(--muted); font-size:13px; }
+
+/* 모바일 네비 */
+.mobileNav { display:none; }
+
+@media (max-width:768px) {
+  .page { padding: calc(var(--header-h) + 16px) 16px 100px; }
+  .searchRow { flex-direction:column; }
+  .btnAnalyze { width:100%; }
+  .scoreGrid { grid-template-columns:repeat(2,1fr); }
+  .compareGrid { grid-template-columns:1fr; }
+  .nav { display:none; }
+  .mobileNav {
+    display:flex; position:fixed; bottom:0; left:0; right:0; z-index:300;
+    background:rgba(255,255,255,.97); backdrop-filter:blur(12px);
+    border-top:1px solid var(--border); height:64px; padding:0 8px;
+  }
+  .mobileNavBtn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:none; border:none; cursor:pointer; color:var(--muted); font-size:10px; font-weight:500; font-family:'Pretendard',sans-serif; }
+  .mobileNavBtn span { font-size:20px; }
+  .mobileNavActive { color:var(--main) !important; font-weight:700 !important; }
+}

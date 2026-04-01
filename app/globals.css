@@ -1,25 +1,37 @@
-/* globals.css — MoveIQ 전역 스타일 */
+/* globals.css — MoveIQ v2 */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+
 :root {
+  /* Brand */
   --main:      #646F4B;
+  --main-dark: #4a5236;
   --sub:       #BFD2BF;
   --sub-light: rgba(191,210,191,0.18);
+
+  /* Backgrounds */
   --bg:        #ffffff;
   --bg2:       #f5f7f3;
   --bg3:       #edf1eb;
+
+  /* Text */
   --text:      #111111;
-  --text2:     #444;
+  --text2:     #444444;
   --muted:     #6b7260;
+
+  /* UI */
   --border:    rgba(100,111,75,0.14);
   --r:         12px;
-  --header-h:  60px;
+  --header-h:  64px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'Noto Sans KR', sans-serif;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 button, input, textarea, select { font-family: inherit; }
+a { text-decoration: none; color: inherit; }
