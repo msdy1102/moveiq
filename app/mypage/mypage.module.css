@@ -172,3 +172,73 @@
   .sideNavItem { flex-shrink: 0; border-bottom: none; border-right: 1px solid #f5f5f5; }
   .backToHomeBtn { display: none; }
 }
+
+/* ── 로고 ── */
+.logoMark {
+  display: inline-block; width: 24px; height: 24px;
+  background: var(--main, #646F4B); border-radius: 6px;
+  margin-right: 6px; vertical-align: middle; position: relative;
+}
+.logoMark::after {
+  content: ''; position: absolute; inset: 5px;
+  background: #BFD2BF; border-radius: 50%;
+}
+
+/* ── 카드 설명 ── */
+.cardDesc { font-size: 13px; color: var(--muted, #7a8570); margin-bottom: 20px; line-height: 1.6; }
+
+/* ── 빈 상태 버튼 ── */
+.emptyBtn {
+  display: inline-block; margin-top: 12px;
+  padding: 10px 20px; background: var(--main, #646F4B); color: #fff;
+  border-radius: 10px; font-size: 13px; font-weight: 700; transition: background .2s;
+}
+.emptyBtn:hover { background: #4a5236; }
+
+/* ── 히스토리 날짜 ── */
+.historyDate { font-size: 11px; color: var(--muted, #7a8570); margin-top: 2px; }
+
+/* ── 히스토리 점수 ── */
+.historyScore { font-size: 15px; font-weight: 800; }
+
+/* ── 히스토리 다시보기 버튼 ── */
+.historyBtn {
+  font-size: 11px; font-weight: 600;
+  background: var(--bg2, #f7faf5); border: 1px solid var(--border, rgba(100,111,75,.15));
+  color: var(--main, #646F4B); padding: 5px 12px; border-radius: 8px;
+  cursor: pointer; transition: all .15s;
+}
+.historyBtn:hover { background: var(--sub-light, rgba(191,210,191,.2)); }
+
+/* ── 소음 알림 목록 ── */
+.watchList { display: flex; flex-direction: column; gap: 8px; }
+.watchItem {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg2, #f7faf5); border-radius: 10px; padding: 12px 14px;
+  border: 1px solid var(--border, rgba(100,111,75,.15));
+}
+.watchLeft { display: flex; align-items: center; gap: 8px; }
+.watchAddr { font-size: 13px; font-weight: 500; color: var(--text, #1a1e15); }
+
+/* ── 불편사항 목록 ── */
+.feedbackList { display: flex; flex-direction: column; gap: 12px; }
+.feedbackItem {
+  background: var(--bg2, #f7faf5); border-radius: 12px; padding: 16px;
+  border: 1px solid var(--border, rgba(100,111,75,.15));
+}
+.feedbackTop { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.feedbackType {
+  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  color: var(--main, #646F4B); background: rgba(100,111,75,.1);
+  padding: 3px 9px; border-radius: 4px;
+}
+.feedbackStatus {
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 4px;
+}
+.feedbackContent {
+  font-size: 13px; color: var(--text2, #3d4535); line-height: 1.7;
+  margin-bottom: 8px;
+  display: -webkit-box; -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.feedbackDate { font-size: 11px; color: var(--muted, #7a8570); }

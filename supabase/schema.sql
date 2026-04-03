@@ -147,3 +147,141 @@ CREATE POLICY "user_prefs_update"
 -- 로그인 후 session_id → user_id 연결 trigger (선택 구현)
 -- UPDATE user_preferences SET user_id = auth.uid()
 --   WHERE session_id = 'client-session-id' AND user_id IS NULL;
+
+-- ══════════════════════════════════════════════════════════════
+-- v3 추가 테이블 — 2026.04
+-- ══════════════════════════════════════════════════════════════
+
+-- ── 1. 회원 프로필 (Supabase Auth 보조 테이블) ────────────────
+-- auth.users 에 없는 추가 정보 (닉네임, 가입경로, 구독 플랜 등)
+CREATE TABLE IF NOT EXISTS profiles (
+  id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nickname        TEXT NOT NULL DEFAULT '',
+  avatar_url      TEXT,
+  plan            TEXT NOT NULL DEFAULT 'free'  -- free | one_time | premium
+                  CHECK (plan IN ('free','one_time','premium')),
+  plan_expires_at TIMESTAMPTZ,
+  analysis_count  INT  NOT NULL DEFAULT 0,      -- 누적 분석 횟수
+  daily_count     INT  NOT NULL DEFAULT 0,      -- 오늘 분석 횟수 (rate limit)
+  daily_reset_at  DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "profiles_select_own"
+  ON profiles FOR SELECT USING (id = auth.uid());
+
+CREATE POLICY "profiles_update_own"
+  ON profiles FOR UPDATE USING (id = auth.uid());
+
+-- INSERT는 trigger로만 (아래)
+
+-- 신규 가입 시 profiles 자동 생성 trigger
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, nickname, avatar_url)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'nickname', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'avatar_url'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- updated_at 자동 갱신 trigger
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
+$$;
+
+DROP TRIGGER IF EXISTS profiles_updated_at ON profiles;
+CREATE TRIGGER profiles_updated_at
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ── 2. 입지 분석 히스토리 (유저/세션별 저장) ─────────────────
+CREATE TABLE IF NOT EXISTS analysis_history (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id      UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  session_id   TEXT,                          -- 비로그인 익명 UUID
+  address      TEXT NOT NULL,
+  result       JSONB NOT NULL,               -- AI 분석 전체 결과
+  total_score  INT,                          -- 종합 점수 (빠른 조회용)
+  grade        TEXT,                         -- 등급 (B+ 등)
+  cached       BOOLEAN DEFAULT false,        -- 캐시 히트 여부
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_analysis_history_user    ON analysis_history(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analysis_history_session ON analysis_history(session_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analysis_history_address ON analysis_history(address);
+
+ALTER TABLE analysis_history ENABLE ROW LEVEL SECURITY;
+
+-- 본인 히스토리만 조회
+CREATE POLICY "analysis_history_select_own"
+  ON analysis_history FOR SELECT
+  USING (
+    (user_id IS NOT NULL AND user_id = auth.uid())
+    OR
+    (user_id IS NULL AND session_id = current_setting('app.session_id', true))
+  );
+
+-- INSERT/DELETE: service_role 전용 (API Route에서만 저장)
+
+-- ── 3. 불편사항 접수 (DB 영구 보관) ─────────────────────────
+CREATE TABLE IF NOT EXISTS feedbacks (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id     UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  session_id  TEXT,
+  type        TEXT NOT NULL CHECK (type IN ('버그 신고','기능 건의','데이터 오류','기타 불편')),
+  content     TEXT NOT NULL CHECK (char_length(content) <= 2000),
+  email       TEXT,                          -- 답변받을 이메일 (선택)
+  status      TEXT NOT NULL DEFAULT 'pending'
+              CHECK (status IN ('pending','reviewing','resolved','closed')),
+  admin_note  TEXT,                          -- 어드민 처리 메모
+  ip          TEXT,
+  user_agent  TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedbacks_status  ON feedbacks(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_user    ON feedbacks(user_id);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_session ON feedbacks(session_id);
+
+ALTER TABLE feedbacks ENABLE ROW LEVEL SECURITY;
+
+-- 본인 제출 내역 조회
+CREATE POLICY "feedbacks_select_own"
+  ON feedbacks FOR SELECT
+  USING (
+    (user_id IS NOT NULL AND user_id = auth.uid())
+    OR
+    (user_id IS NULL AND session_id = current_setting('app.session_id', true))
+  );
+
+-- INSERT: service_role 전용 (API Route에서만)
+
+-- updated_at trigger
+DROP TRIGGER IF EXISTS feedbacks_updated_at ON feedbacks;
+CREATE TRIGGER feedbacks_updated_at
+  BEFORE UPDATE ON feedbacks
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ══════════════════════════════════════════════════════════════
+-- user_preferences 테이블 컬럼 보강 (watched_addresses 추가)
+-- ══════════════════════════════════════════════════════════════
+ALTER TABLE user_preferences
+  ADD COLUMN IF NOT EXISTS watched_addresses JSONB NOT NULL DEFAULT '[]';

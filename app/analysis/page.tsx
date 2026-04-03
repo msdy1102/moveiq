@@ -107,7 +107,7 @@ function AnalysisContent() {
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address, session_id: sessionId || undefined }),
       });
       const json = await res.json();
       clearInterval(iv);

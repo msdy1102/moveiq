@@ -797,19 +797,24 @@ function FeedbackBox() {
   const [text, setText]     = useState('');
   const [email, setEmail]   = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSessionId(localStorage.getItem('moveiq_session_id') ?? '');
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!type || !text.trim()) return;
     setLoading(true);
     try {
-      // 이메일 발송 (Resend API 또는 mailto fallback)
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, text, email }),
+        body: JSON.stringify({ type, text, email, session_id: sessionId || undefined }),
       });
-      // API가 없으면 mailto fallback
       if (!res.ok) throw new Error('api_unavailable');
       setSent(true);
     } catch {
