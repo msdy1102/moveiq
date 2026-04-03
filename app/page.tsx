@@ -5,22 +5,6 @@ import { useRouter } from 'next/navigation';
 import AuthButton from './components/AuthButton';
 import styles from './page.module.css';
 
-// ── 법적 모달 콘텐츠 ─────────────────────────────────────
-const LEGAL_PAGES: Record<string, { title: string; body: string }> = {
-  '이용약관': {
-    title: '이용약관',
-    body: `■ 제1조 (목적)\n본 약관은 무브IQ 서비스의 이용 조건 및 절차에 관한 사항을 규정합니다.\n\n■ 제2조 (서비스 제공)\n소음 크라우드 지도, AI 입지 분석 정보를 제공합니다. 제공되는 정보는 참고용이며, 최종 이사 결정의 책임은 이용자에게 있습니다.\n\n■ 제3조 (이용자 의무)\n• 허위 소음 제보 금지\n• 타인의 권리 침해 금지\n• 서비스 정상 운영 방해 금지\n\n■ 제4조 (면책조항)\nAI 및 크라우드 데이터 기반으로 100% 정확성을 보장하지 않습니다.\n\n문의: admin@moveiq.co.kr`,
-  },
-  '개인정보처리방침': {
-    title: '개인정보처리방침',
-    body: `무브IQ는 이용자의 개인정보를 중요시하며 개인정보보호법을 준수합니다.\n\n■ 수집하는 개인정보\n• 소음 제보 시: 제보 위치(50m 반경 랜덤화), IP 주소\n• 회원가입 시: 이메일, 닉네임\n\n■ 개인정보 보유 및 파기\n• 소음 제보: 90일 후 자동 삭제\n• 회원 탈퇴 시: 즉시 파기\n\n■ 위치정보 처리\n제보 위치는 반경 50m 랜덤화 처리 후 저장됩니다.\n\n문의: admin@moveiq.co.kr`,
-  },
-  '공지사항': {
-    title: '공지사항',
-    body: `■ [2025.03] 무브IQ 베타 서비스 오픈\n\n소음 크라우드 지도 × AI 입지 분석 플랫폼 무브IQ가 베타 서비스를 시작합니다.\n\n▶ 베타 기간 중 무료 제공\n• 소음 지도 열람 및 제보 무제한\n• AI 입지 분석 일 3회\n• 6개 레이어 기본 분석\n\n▶ 순차 오픈 예정\n• PDF 리포트 저장\n• 실시간 알림 서비스\n• 유료 요금제\n\n문의: admin@moveiq.co.kr`,
-  },
-};
-
 // ── FAQ ──────────────────────────────────────────────────
 const FAQ_DATA = [
   {
@@ -49,6 +33,35 @@ const FAQ_DATA = [
   },
 ];
 
+// ── 레이더 차트 헬퍼 ─────────────────────────────────────
+// 6각형 레이더: 교통·인프라·학군·소음·상권·개발 순서
+function radarPolygon(scores: number[], cx: number, cy: number, r: number) {
+  const n = scores.length;
+  const pts = scores.map((s, i) => {
+    const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+    const dist  = (s / 100) * r;
+    return [cx + dist * Math.cos(angle), cy + dist * Math.sin(angle)];
+  });
+  return pts.map(p => p.join(',')).join(' ');
+}
+function radarGrid(cx: number, cy: number, r: number, levels: number, n: number) {
+  return Array.from({ length: levels }, (_, li) => {
+    const ratio = (li + 1) / levels;
+    const pts = Array.from({ length: n }, (__, i) => {
+      const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+      return [cx + r * ratio * Math.cos(angle), cy + r * ratio * Math.sin(angle)].join(',');
+    });
+    return pts.join(' ');
+  });
+}
+function radarAxes(cx: number, cy: number, r: number, n: number) {
+  return Array.from({ length: n }, (_, i) => {
+    const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+    return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+  });
+}
+const RADAR_LABELS = ['교통', '인프라', '학군', '소음', '상권', '개발'];
+
 // ── 페르소나 탭 데이터 ────────────────────────────────────
 const PERSONAS = [
   {
@@ -56,60 +69,65 @@ const PERSONAS = [
     icon: '🔊',
     title: '소음, 계약 전에 확인하세요',
     desc: '이전 집에서 층간소음·공사소음으로 고생한 경험이 있는 분',
+    scores: [80, 88, 62, 45, 79, 72],  // 교통·인프라·학군·소음·상권·개발
     stats: [
       { label: '반경 500m 제보 건수', sub: '최근 6개월 기준', val: '142건', red: false },
-      { label: '최대 소음 시간대',   sub: '데시벨 최고 시점', val: '23:00–02:00', red: true },
-      { label: '진행 중인 공사',     sub: '허가 건수',        val: '2구역', red: false },
+      { label: '최대 소음 시간대',    sub: '데시벨 최고 시점', val: '23:00–02:00', red: true },
+      { label: '진행 중인 공사',      sub: '허가 건수',        val: '2구역', red: false },
     ],
-    insight: '심야 소음 집중 감지. 유흥가 밀집 구역 인접. 남향 내부 유닛 권장.',
+    insight: '소음 점수 45점 — 심야 유흥가 밀집 구역 인접. 층간소음 제보 3건 포함. 남향 내부 유닛 권장.',
   },
   {
     tab: '아이 키우는 분',
     icon: '👶',
     title: '학군·소음·인프라 한 번에',
     desc: '영유아 자녀가 있고 학군·환경을 함께 봐야 하는 분',
+    scores: [75, 82, 62, 58, 70, 65],
     stats: [
-      { label: '학군 점수',     sub: '배정 초등학교 기준',   val: '62/100', red: false },
-      { label: '어린이집',      sub: '반경 500m 내',          val: '8개소', red: false },
-      { label: '심야 소음 지수', sub: '22시 이후 기준',       val: '58/100 ⚠', red: true },
+      { label: '학군 점수',      sub: '배정 초등학교 기준', val: '62/100', red: false },
+      { label: '어린이집',       sub: '반경 500m 내',       val: '8개소',  red: false },
+      { label: '심야 소음 지수', sub: '22시 이후 기준',     val: '58/100 ⚠', red: true },
     ],
-    insight: '학군 보완 필요. 야간 소음 주의. 공원·소아과 인프라 양호.',
+    insight: '학군 62점 — 보완 필요. 야간 소음 58점 주의. 반경 500m 소아과 3곳·공원 2곳으로 육아 인프라는 양호.',
   },
   {
     tab: '재택근무 하시는 분',
     icon: '💻',
     title: '평일 낮 소음이 진짜 문제',
     desc: '주 3일 이상 재택, 집에서 화상회의·집중 업무를 하는 분',
+    scores: [82, 90, 60, 78, 85, 68],
     stats: [
-      { label: '평일 오전 제보', sub: '9–12시 기준',        val: '3건', red: false },
-      { label: '현재 공사 건수', sub: '반경 내 활성',       val: '0건', red: false },
-      { label: '주변 카페',     sub: '반경 500m 내',        val: '14곳', red: false },
+      { label: '평일 오전 제보', sub: '9–12시 기준',    val: '3건',   red: false },
+      { label: '현재 공사 건수', sub: '반경 내 활성',   val: '0건',   red: false },
+      { label: '주변 카페',      sub: '반경 500m 내',   val: '14곳',  red: false },
     ],
-    insight: '주간 소음 환경 양호. 공사 구역 없음. 카페 대체 근무 옵션 풍부.',
+    insight: '평일 오전 소음 제보 3건(양호). 현재 공사 0건. 카페 14곳으로 외부 근무 대안 풍부. 재택 환경 적합.',
   },
   {
     tab: '투자도 고려하시는 분',
     icon: '📈',
     title: '입지 가치까지 한 번에 분석',
     desc: '실거주하면서 향후 시세·개발 가치도 함께 따지는 분',
+    scores: [85, 80, 65, 55, 88, 78],
     stats: [
       { label: '개발 잠재력 점수', sub: '입지 종합 지수',  val: '78/100', red: false },
       { label: '교통 신설 예정',   sub: '5호선 연장',      val: '2027 Q3', red: false },
-      { label: '상권 성장세',      sub: '최근 2년 개업률', val: '+23%', red: false },
+      { label: '상권 성장세',      sub: '최근 2년 개업률', val: '+23%',   red: false },
     ],
-    insight: '개발 잠재력 높음. 교통 인프라 신설 예정. 상권 성장세 지속.',
+    insight: '개발 잠재력 78점. 5호선 연장 2027년 예정. 상권 성장세 +23%. 교통·상권 모두 상위권으로 투자 매력 높음.',
   },
   {
     tab: '청약 당첨 후 이주',
     icon: '🏠',
     title: '낯선 동네, 미리 파악하기',
     desc: '청약 당첨 후 처음 가보는 지역에 입주를 앞두고 있는 분',
+    scores: [70, 64, 72, 80, 60, 75],
     stats: [
-      { label: '현재 인프라 점수', sub: '현재 기준',      val: '64/100', red: false },
-      { label: '입주 시점 예상',   sub: '개발 완료 후',   val: '79/100', red: false },
-      { label: '신설 예정 시설',   sub: '입주 전후',      val: '3곳', red: false },
+      { label: '현재 인프라 점수', sub: '현재 기준',    val: '64/100', red: false },
+      { label: '입주 시점 예상',   sub: '개발 완료 후', val: '79/100', red: false },
+      { label: '신설 예정 시설',   sub: '입주 전후',    val: '3곳',    red: false },
     ],
-    insight: '입주 시점 인프라 성장 예상. 이마트 입점·초등학교 신설 포함.',
+    insight: '현재 인프라 64점 → 입주 시점 79점 예상. 이마트·초등학교·버스환승센터 3개 시설 신설 예정.',
   },
 ];
 
@@ -118,7 +136,6 @@ export default function LandingPage() {
   const router = useRouter();
   const [searchVal, setSearchVal] = useState('');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [pageModal, setPageModal] = useState<string | null>(null);
   const [activePersna, setActivePersona] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [counter, setCounter] = useState(0);
@@ -485,15 +502,61 @@ export default function LandingPage() {
                 <p className={styles.personaInsightText}>{p.insight}</p>
               </div>
               <div className={styles.personaChartBox}>
-                <svg viewBox="0 0 200 200" className={styles.personaRadar}>
-                  <polygon points="100,20 160,65 140,140 60,140 40,65" fill="var(--sub-light)" stroke="var(--sub)" strokeWidth="1.5"/>
-                  <polygon points="100,40 145,75 128,130 72,130 55,75" fill="none" stroke="var(--border)" strokeWidth="0.5"/>
-                  <polygon points="100,60 130,82 117,118 83,118 70,82" fill="none" stroke="var(--border)" strokeWidth="0.5"/>
-                  <line x1="100" y1="20" x2="100" y2="180" stroke="var(--border)" strokeWidth="0.5"/>
-                  <line x1="40" y1="65" x2="160" y2="135" stroke="var(--border)" strokeWidth="0.5"/>
-                  <line x1="160" y1="65" x2="40" y2="135" stroke="var(--border)" strokeWidth="0.5"/>
-                </svg>
-                <div className={styles.personaChartLabel}>6개 레이어 종합 분석</div>
+                {(() => {
+                  const cx = 110, cy = 110, r = 80, n = 6;
+                  const gridLevels = radarGrid(cx, cy, r, 4, n);
+                  const axes       = radarAxes(cx, cy, r, n);
+                  const dataPoints = radarPolygon(p.scores, cx, cy, r);
+                  const labelDist  = r + 20;
+                  const labelPts   = RADAR_LABELS.map((lbl, i) => {
+                    const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+                    return {
+                      lbl,
+                      x: cx + labelDist * Math.cos(angle),
+                      y: cy + labelDist * Math.sin(angle),
+                      score: p.scores[i],
+                    };
+                  });
+                  return (
+                    <svg viewBox="0 0 220 220" className={styles.personaRadar}>
+                      {/* 그리드 */}
+                      {gridLevels.map((pts, i) => (
+                        <polygon key={i} points={pts} fill="none" stroke="var(--border)" strokeWidth="0.8"/>
+                      ))}
+                      {/* 축선 */}
+                      {axes.map(([ax, ay], i) => (
+                        <line key={i} x1={cx} y1={cy} x2={ax} y2={ay} stroke="var(--border)" strokeWidth="0.8"/>
+                      ))}
+                      {/* 데이터 폴리곤 */}
+                      <polygon
+                        points={dataPoints}
+                        fill="rgba(100,111,75,0.18)"
+                        stroke="var(--main)"
+                        strokeWidth="2"
+                        strokeLinejoin="round"
+                      />
+                      {/* 데이터 포인트 */}
+                      {radarPolygon(p.scores, cx, cy, r).split(' ').map((pt, i) => {
+                        const [px, py] = pt.split(',').map(Number);
+                        return <circle key={i} cx={px} cy={py} r="3.5" fill="var(--main)" stroke="#fff" strokeWidth="1.5"/>;
+                      })}
+                      {/* 라벨 */}
+                      {labelPts.map(({ lbl, x, y, score }, i) => (
+                        <text key={i} x={x} y={y}
+                          textAnchor="middle" dominantBaseline="middle"
+                          fontSize="9" fill="var(--muted)" fontFamily="Pretendard, sans-serif"
+                        >
+                          {lbl}
+                        </text>
+                      ))}
+                    </svg>
+                  );
+                })()}
+                <div className={styles.personaChartLabel}>
+                  종합 점수: <strong style={{ color: 'var(--main)' }}>
+                    {Math.round(p.scores.reduce((a, b) => a + b, 0) / p.scores.length)}점
+                  </strong>
+                </div>
               </div>
             </div>
           </div>
@@ -544,9 +607,9 @@ export default function LandingPage() {
                   <tr>
                     <th>기능</th>
                     <th className={styles.thMain}>무브IQ</th>
-                    <th>호갱노노</th>
-                    <th>직방</th>
-                    <th>네이버부동산</th>
+                    <th>경쟁사 A</th>
+                    <th>경쟁사 B</th>
+                    <th>경쟁사 C</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -651,6 +714,9 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+
+          {/* 불편사항 접수 */}
+          <FeedbackBox />
         </div>
       </section>
 
@@ -706,13 +772,13 @@ export default function LandingPage() {
               </div>
               <div className={styles.footerCol}>
                 <div className={styles.footerColTitle}>고객지원</div>
-                <button className={styles.footerLinkBtn} onClick={() => setPageModal('공지사항')}>공지사항</button>
+                <Link href="/legal/notice"  className={styles.footerLink}>공지사항</Link>
                 <a href="mailto:admin@moveiq.co.kr" className={styles.footerLink}>문의하기</a>
               </div>
               <div className={styles.footerCol}>
                 <div className={styles.footerColTitle}>법적 고지</div>
-                <button className={styles.footerLinkBtn} onClick={() => setPageModal('이용약관')}>이용약관</button>
-                <button className={styles.footerLinkBtn} onClick={() => setPageModal('개인정보처리방침')}>개인정보처리방침</button>
+                <Link href="/legal/terms"   className={styles.footerLink}>이용약관</Link>
+                <Link href="/legal/privacy" className={styles.footerLink}>개인정보처리방침</Link>
               </div>
             </div>
           </div>
@@ -720,17 +786,162 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* 법적 모달 */}
-      {pageModal && (
-        <div className={styles.modalBg} onClick={e => { if (e.target === e.currentTarget) setPageModal(null); }}>
-          <div className={styles.modal}>
-            <div className={styles.modalHead}>
-              <h3>{LEGAL_PAGES[pageModal].title}</h3>
-              <button onClick={() => setPageModal(null)}>✕</button>
-            </div>
-            <pre className={styles.modalBody}>{LEGAL_PAGES[pageModal].body}</pre>
+    </div>
+  );
+}
+
+// ── 불편사항 접수 컴포넌트 ───────────────────────────────
+function FeedbackBox() {
+  const [sent, setSent]     = useState(false);
+  const [type, setType]     = useState('');
+  const [text, setText]     = useState('');
+  const [email, setEmail]   = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!type || !text.trim()) return;
+    setLoading(true);
+    try {
+      // 이메일 발송 (Resend API 또는 mailto fallback)
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, text, email }),
+      });
+      // API가 없으면 mailto fallback
+      if (!res.ok) throw new Error('api_unavailable');
+      setSent(true);
+    } catch {
+      // fallback: mailto 열기
+      const subject = encodeURIComponent(`[무브IQ 불편사항] ${type}`);
+      const body    = encodeURIComponent(`유형: ${type}\n\n내용:\n${text}\n\n${email ? `연락처: ${email}` : ''}`);
+      window.open(`mailto:admin@moveiq.co.kr?subject=${subject}&body=${body}`);
+      setSent(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const TYPES = [
+    { icon: '🐛', label: '버그 신고' },
+    { icon: '💡', label: '기능 건의' },
+    { icon: '📊', label: '데이터 오류' },
+    { icon: '💬', label: '기타 불편' },
+  ];
+
+  return (
+    <div style={{
+      marginTop: 40, background: '#fff', border: '1px solid rgba(100,111,75,.15)',
+      borderRadius: 16, padding: '32px 28px',
+      boxShadow: '0 2px 12px rgba(100,111,75,.06)',
+    }}>
+      {sent ? (
+        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1e15', marginBottom: 6 }}>
+            접수 완료! 감사합니다.
           </div>
+          <p style={{ fontSize: 13, color: '#7a8570', lineHeight: 1.7 }}>
+            소중한 의견은 서비스 개선에 반영됩니다.<br />
+            영업일 기준 3일 이내 검토 후 답변드립니다.
+          </p>
+          <button
+            onClick={() => { setSent(false); setType(''); setText(''); setEmail(''); }}
+            style={{ marginTop: 16, fontSize: 13, color: '#646F4B', background: 'none', border: '1px solid #646F4B', borderRadius: 8, padding: '8px 20px', cursor: 'pointer' }}
+          >
+            다른 의견 보내기
+          </button>
         </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span style={{ fontSize: 22 }}>🙋</span>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1e15' }}>불편하셨나요?</div>
+              <div style={{ fontSize: 13, color: '#7a8570', marginTop: 2 }}>
+                버그·오류·개선 제안 무엇이든 알려주세요. 직접 확인하겠습니다.
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} style={{ marginTop: 20 }}>
+            {/* 유형 선택 */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              {TYPES.map(t => (
+                <button
+                  key={t.label}
+                  type="button"
+                  onClick={() => setType(t.label)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '8px 14px', borderRadius: 24,
+                    border: `1.5px solid ${type === t.label ? '#646F4B' : 'rgba(100,111,75,.2)'}`,
+                    background: type === t.label ? '#646F4B' : '#fff',
+                    color: type === t.label ? '#fff' : '#3d4535',
+                    fontSize: 13, fontWeight: type === t.label ? 700 : 500,
+                    cursor: 'pointer', transition: 'all .15s',
+                  }}
+                >
+                  {t.icon} {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 내용 입력 */}
+            <textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="어떤 점이 불편하셨나요? 구체적으로 알려주시면 빠르게 개선하겠습니다."
+              required
+              rows={4}
+              style={{
+                width: '100%', padding: '12px 14px',
+                background: '#f7faf5', border: '1.5px solid rgba(100,111,75,.15)',
+                borderRadius: 10, fontSize: 14, color: '#1a1e15',
+                outline: 'none', resize: 'none', fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+              onFocus={e => { e.target.style.borderColor = '#646F4B'; e.target.style.background = '#fff'; }}
+              onBlur={e => { e.target.style.borderColor = 'rgba(100,111,75,.15)'; e.target.style.background = '#f7faf5'; }}
+            />
+
+            {/* 이메일 (선택) */}
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="답변받을 이메일 (선택사항)"
+              style={{
+                width: '100%', marginTop: 8, padding: '11px 14px',
+                background: '#f7faf5', border: '1.5px solid rgba(100,111,75,.15)',
+                borderRadius: 10, fontSize: 13, color: '#1a1e15',
+                outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+              }}
+              onFocus={e => { e.target.style.borderColor = '#646F4B'; e.target.style.background = '#fff'; }}
+              onBlur={e => { e.target.style.borderColor = 'rgba(100,111,75,.15)'; e.target.style.background = '#f7faf5'; }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+              <span style={{ fontSize: 11, color: '#a4ad98' }}>
+                또는 <a href="mailto:admin@moveiq.co.kr" style={{ color: '#646F4B', fontWeight: 600 }}>admin@moveiq.co.kr</a>으로 직접 보내셔도 됩니다.
+              </span>
+              <button
+                type="submit"
+                disabled={loading || !type || !text.trim()}
+                style={{
+                  padding: '11px 24px', background: '#646F4B', color: '#fff',
+                  border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                  cursor: loading || !type || !text.trim() ? 'not-allowed' : 'pointer',
+                  opacity: loading || !type || !text.trim() ? 0.5 : 1,
+                  transition: 'all .2s', fontFamily: 'inherit',
+                }}
+              >
+                {loading ? '전송 중...' : '의견 보내기'}
+              </button>
+            </div>
+          </form>
+        </>
       )}
     </div>
   );

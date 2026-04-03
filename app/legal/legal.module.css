@@ -1,0 +1,76 @@
+/* legal.module.css — 카카오 스타일 법적 문서 */
+.page { min-height:100vh; background:#f7faf5; padding:48px 0 80px; }
+.container { max-width:800px; margin:0 auto; padding:0 24px; }
+
+/* 문서 헤더 */
+.docHeader { margin-bottom:40px; }
+.docBadge {
+  display:inline-block; font-size:11px; font-weight:700; letter-spacing:2px;
+  color:var(--main,#646F4B); background:rgba(100,111,75,.1);
+  padding:4px 12px; border-radius:4px; margin-bottom:14px;
+}
+.docTitle { font-size:clamp(24px,3.5vw,36px); font-weight:900; color:#1a1e15; margin-bottom:10px; }
+.docMeta { display:flex; gap:8px; font-size:12px; color:#7a8570; margin-bottom:16px; flex-wrap:wrap; }
+.docSummary { font-size:14px; color:#7a8570; line-height:1.8; background:#fff; border-radius:12px; padding:16px 20px; border:1px solid rgba(100,111,75,.12); }
+
+/* 목차 */
+.toc {
+  background:#fff; border-radius:12px; padding:20px 24px;
+  border:1px solid rgba(100,111,75,.12); margin-bottom:32px;
+}
+.tocTitle { font-size:12px; font-weight:700; color:var(--main,#646F4B); letter-spacing:1px; margin-bottom:12px; }
+.tocItem {
+  display:block; font-size:13px; color:#3d4535; padding:6px 0;
+  border-bottom:1px solid rgba(100,111,75,.07); transition:color .15s;
+}
+.tocItem:last-child { border-bottom:none; }
+.tocItem:hover { color:var(--main,#646F4B); }
+
+/* 본문 */
+.docBody { }
+.docSection {
+  background:#fff; border-radius:12px; padding:28px;
+  border:1px solid rgba(100,111,75,.12); margin-bottom:16px;
+  scroll-margin-top:80px;
+}
+.docSectionTitle { font-size:16px; font-weight:700; color:#1a1e15; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid rgba(100,111,75,.1); }
+.docContent p { font-size:14px; color:#444; line-height:1.85; }
+
+/* 문서 푸터 */
+.docFooter { margin-top:32px; padding:20px 24px; background:#fff; border-radius:12px; border:1px solid rgba(100,111,75,.12); font-size:13px; color:#7a8570; line-height:1.8; }
+.docFooter a { color:var(--main,#646F4B); font-weight:600; }
+
+/* 공지사항 */
+.noticeList { display:flex; flex-direction:column; gap:8px; }
+.noticeItem {
+  background:#fff; border:1px solid rgba(100,111,75,.12); border-radius:12px;
+  overflow:hidden; transition:border-color .2s;
+}
+.noticeItemImportant { border-color:rgba(100,111,75,.35); }
+.noticeSummary {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 24px; cursor:pointer; list-style:none;
+  gap:12px;
+}
+.noticeSummary::-webkit-details-marker { display:none; }
+.noticeLeft { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+.noticeBadge {
+  font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px;
+  background:#f7faf5; color:#7a8570; white-space:nowrap; flex-shrink:0;
+}
+.noticeBadgeImportant { background:rgba(100,111,75,.1); color:var(--main,#646F4B); }
+.noticeTitle { font-size:14px; font-weight:600; color:#1a1e15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.noticeDate { font-size:12px; color:#a4ad98; flex-shrink:0; }
+.noticeBody {
+  padding:0 24px 20px; font-size:13px; color:#444; line-height:1.85;
+  border-top:1px solid rgba(100,111,75,.08); padding-top:16px; margin:0 24px;
+}
+.noticeBody p { margin-bottom:6px; }
+
+@media (max-width:640px) {
+  .container { padding:0 16px; }
+  .docSection, .toc, .docSummary, .docFooter { padding:16px; }
+  .noticeSummary { padding:14px 16px; }
+  .noticeTitle { font-size:13px; }
+  .noticeBody { margin:0 16px; }
+}
