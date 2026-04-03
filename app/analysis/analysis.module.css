@@ -149,3 +149,92 @@
   .mobileNavBtn span { font-size:20px; }
   .mobileNavActive { color:var(--main) !important; font-weight:700 !important; }
 }
+
+/* ── 플랜 상태 바 ── */
+.quotaBar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 16px; margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.quotaLeft { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.planBadge {
+  font-size: 11px; font-weight: 700; padding: 4px 10px;
+  border-radius: 20px; letter-spacing: .5px; flex-shrink: 0;
+}
+.quotaText { font-size: 13px; color: var(--muted); }
+.quotaText strong { font-weight: 700; }
+.quotaUpgradeBtn {
+  font-size: 12px; font-weight: 700; padding: 6px 14px;
+  background: var(--main); color: #fff; border: none;
+  border-radius: 20px; cursor: pointer; white-space: nowrap;
+  transition: background .2s; flex-shrink: 0;
+}
+.quotaUpgradeBtn:hover { background: var(--main-dark, #4a5236); }
+
+/* ── PDF 잠금 버튼 ── */
+.btnPdfLocked {
+  background: var(--bg2) !important; color: var(--muted) !important;
+  border: 1.5px solid var(--border) !important; cursor: pointer !important;
+  transition: all .2s !important;
+}
+.btnPdfLocked:hover {
+  background: var(--sub-light) !important; border-color: var(--main) !important;
+  color: var(--main) !important;
+}
+
+/* ── 업그레이드 모달 ── */
+.modalBg {
+  position: fixed; inset: 0; z-index: 600;
+  background: rgba(0,0,0,.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.upgradeModal {
+  background: #fff; border-radius: 20px; padding: 36px 32px;
+  max-width: 560px; width: 100%; position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,.15); text-align: center;
+  max-height: 90vh; overflow-y: auto;
+}
+.modalClose {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--bg2); border: none; cursor: pointer;
+  width: 30px; height: 30px; border-radius: 50%;
+  font-size: 14px; color: var(--muted);
+}
+.upgradeLock { font-size: 44px; margin-bottom: 12px; }
+.upgradeTitle { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+.upgradeDesc { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 28px; }
+.upgradePlans { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; text-align: left; }
+.upgradePlanCard {
+  background: var(--bg2); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 20px 16px; position: relative;
+}
+.upgradePlanCardMain {
+  border-color: var(--main); background: #fff;
+  box-shadow: 0 4px 16px rgba(100,111,75,.12);
+}
+.upgradePlanBadge {
+  position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+  background: var(--main); color: #fff; font-size: 10px; font-weight: 700;
+  padding: 3px 12px; border-radius: 0 0 8px 8px; white-space: nowrap;
+}
+.upgradePlanName { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.upgradePlanPrice { font-size: 26px; font-weight: 900; color: var(--text); margin-bottom: 12px; }
+.upgradePlanPrice span { font-size: 13px; color: var(--muted); font-weight: 400; }
+.upgradePlanFeats { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.upgradePlanFeats li { font-size: 12px; color: var(--text2); }
+.upgradePlanBtn, .upgradePlanBtnMain {
+  width: 100%; padding: 10px; border-radius: 8px; cursor: pointer;
+  font-size: 13px; font-weight: 700; border: none; transition: all .2s;
+}
+.upgradePlanBtn { background: var(--bg3); color: var(--muted); }
+.upgradePlanBtnMain { background: var(--main); color: #fff; }
+.upgradePlanBtnMain:hover:not(:disabled) { background: var(--main-dark, #4a5236); }
+.upgradePlanBtn:disabled, .upgradePlanBtnMain:disabled { opacity: .5; cursor: not-allowed; }
+.upgradeNote { font-size: 12px; color: var(--muted2); line-height: 1.7; }
+.upgradeLink { color: var(--main); font-weight: 600; }
+
+@media (max-width: 480px) {
+  .upgradePlans { grid-template-columns: 1fr; }
+  .upgradeModal { padding: 28px 20px; }
+}

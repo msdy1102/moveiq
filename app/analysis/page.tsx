@@ -3,9 +3,10 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthButton from '../components/AuthButton';
+import { useAuth } from '../components/useAuth';
 import styles from './analysis.module.css';
 
-// ── 타입 ──────────────────────────────────────────────────
+// ── 타입 ──────────────────────────────────────────────────────
 interface AnalysisResult {
   address: string;
   scores: { traffic:number; infra:number; school:number; noise:number; commerce:number; development:number; };
@@ -19,18 +20,24 @@ interface AnalysisResult {
   school_info?:{ name:string; type:string; distance:string; rating:string; note:string }[];
 }
 
-// ── 예시 데이터 ──────────────────────────────────────────
+interface QuotaInfo {
+  plan:        string;
+  remaining:   number;
+  daily_limit: number;
+}
+
+// ── 예시 데이터 ───────────────────────────────────────────────
 const SAMPLE: AnalysisResult = {
   address: '마포구 성산동 일대 (예시)',
   scores: { traffic:80, infra:88, school:62, noise:45, commerce:79, development:72 },
   total: 75, grade: 'B+',
   ai_comment: '교통·생활 편의는 우수하나 소음 환경과 학군 측면에서 개선 여지가 있습니다. 주말 저녁~새벽 유흥 소음이 집중되며, 인근 재개발 공사는 2027년 2월까지 예정되어 있습니다.',
-  traffic_detail: '지하철 2·6호선 도보 10분 이내. 버스 정류장 8개. 강남까지 약 35분 소요. 교통 접근성 우수.',
-  infra_detail: '반경 500m 내 편의점 6개, 병원·약국 12개, 카페 18개, 공원 2개. 생활 인프라 매우 풍부.',
-  school_detail: '배정 초등학교 1개(도보 8분), 중학교 배정 예측 2곳, 학원가 밀집(수학·영어 중심).',
-  noise_detail: '주중 낮은 비교적 조용하나 주말 저녁~새벽 유흥 소음이 집중됩니다. 재택근무자·영유아 가정 주의 필요.',
-  commerce_detail: '유동인구 구 평균 대비 +22%, 음식점·카페 중심 업종, 공실률 7%(안정적).',
-  development_detail: '2027년 재개발 구역 인접. 주변 재건축 단지 호재 예정. 장기 보유 시 가치 상승 기대.',
+  traffic_detail: '지하철 2·6호선 도보 10분 이내. 버스 정류장 8개. 강남까지 약 35분 소요.',
+  infra_detail: '반경 500m 내 편의점 6개, 병원·약국 12개, 카페 18개, 공원 2개.',
+  school_detail: '배정 초등학교 1개(도보 8분), 중학교 배정 예측 2곳, 학원가 밀집.',
+  noise_detail: '주중 낮은 비교적 조용하나 주말 저녁~새벽 유흥 소음이 집중됩니다.',
+  commerce_detail: '유동인구 구 평균 대비 +22%, 음식점·카페 중심 업종, 공실률 7%.',
+  development_detail: '2027년 재개발 구역 인접. 장기 보유 시 가치 상승 기대.',
   alternatives: [
     { name:'연남동', score:78, note:'학군 +15점, 임대료 +12%' },
     { name:'공덕동', score:77, note:'교통 +8점, 소음 -10점' },
@@ -47,14 +54,84 @@ const SAMPLE: AnalysisResult = {
 const STEPS = ['교통 데이터 수집 중...', '생활 시설 분석 중...', '소음 데이터 연동 중...', 'AI 종합 평가 생성 중...'];
 const sc = (s: number) => s >= 80 ? 'var(--main)' : s >= 60 ? 'var(--main-lite)' : '#e0a84b';
 
+// ── 플랜 라벨 ─────────────────────────────────────────────────
+const PLAN_LABEL: Record<string, { label:string; color:string; bg:string }> = {
+  free:     { label:'무료',          color:'#7a8570', bg:'#f7faf5' },
+  one_time: { label:'이사 한 번',    color:'#2563EB', bg:'#eff6ff' },
+  premium:  { label:'프리미엄',      color:'#646F4B', bg:'rgba(100,111,75,.1)' },
+  guest:    { label:'비로그인',       color:'#a4ad98', bg:'#f5f5f5' },
+};
+
+// ── 업그레이드 모달 ────────────────────────────────────────────
+function UpgradeModal({ onClose, plan, reason }: {
+  onClose: () => void;
+  plan:    string;
+  reason:  string;
+}) {
+  return (
+    <div className={styles.modalBg} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className={styles.upgradeModal}>
+        <button className={styles.modalClose} onClick={onClose}>✕</button>
+        <div className={styles.upgradeLock}>🔒</div>
+        <h3 className={styles.upgradeTitle}>
+          {plan === 'free' ? '오늘 무료 분석 횟수를 모두 사용했습니다' : '분석 횟수를 모두 사용했습니다'}
+        </h3>
+        <p className={styles.upgradeDesc}>{reason}</p>
+
+        <div className={styles.upgradePlans}>
+          {/* 이사 한 번 플랜 */}
+          <div className={styles.upgradePlanCard}>
+            <div className={styles.upgradePlanName}>이사 한 번 플랜</div>
+            <div className={styles.upgradePlanPrice}>4,900<span>원</span></div>
+            <ul className={styles.upgradePlanFeats}>
+              <li>✓ AI 입지 분석 1회</li>
+              <li>✓ 6개 레이어 상세 데이터</li>
+              <li>✓ PDF 리포트 저장</li>
+            </ul>
+            <button className={styles.upgradePlanBtn} disabled>곧 출시 예정</button>
+          </div>
+
+          {/* 프리미엄 플랜 */}
+          <div className={`${styles.upgradePlanCard} ${styles.upgradePlanCardMain}`}>
+            <div className={styles.upgradePlanBadge}>추천</div>
+            <div className={styles.upgradePlanName}>프리미엄</div>
+            <div className={styles.upgradePlanPrice}>14,900<span>원/월</span></div>
+            <ul className={styles.upgradePlanFeats}>
+              <li>✓ 무제한 AI 입지 분석</li>
+              <li>✓ 지역 동시 비교 최대 5곳</li>
+              <li>✓ PDF 저장 + 공유 링크</li>
+              <li>✓ 소음 신규 제보 실시간 알림</li>
+            </ul>
+            <button className={styles.upgradePlanBtnMain} disabled>곧 출시 예정</button>
+          </div>
+        </div>
+
+        <p className={styles.upgradeNote}>
+          내일 자정에 무료 횟수가 초기화됩니다.<br/>
+          또는 <Link href="/#faq" onClick={onClose} className={styles.upgradeLink}>FAQ에서 더 알아보기 →</Link>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── 메인 콘텐츠 ───────────────────────────────────────────────
 function AnalysisContent() {
   const searchParams = useSearchParams();
-  const [input,  setInput]  = useState(searchParams.get('address') ?? '');
+  const { user }     = useAuth();
+
+  const [input,   setInput]   = useState(searchParams.get('address') ?? '');
   const [loading, setLoading] = useState(false);
-  const [step, setStep]     = useState(0);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [rTab, setRTab]     = useState('overview');
+  const [step,    setStep]    = useState(0);
+  const [result,  setResult]  = useState<AnalysisResult | null>(null);
+  const [rTab,    setRTab]    = useState('overview');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  // ── 플랜/쿼터 상태 ────────────────────────────────────────
+  const [quota,          setQuota]          = useState<QuotaInfo | null>(null);
+  const [showUpgrade,    setShowUpgrade]    = useState(false);
+  const [upgradeReason,  setUpgradeReason]  = useState('');
+
   const [sessionId] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
     const ex = localStorage.getItem('moveiq_session_id');
@@ -64,20 +141,28 @@ function AnalysisContent() {
     return id;
   });
 
+  // 플랜 정보 로드
   useEffect(() => {
-    // 검색 히스토리 + DB 설정 불러오기
+    if (!user?.id) return;
+    fetch(`/api/profile?user_id=${encodeURIComponent(user.id)}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          setQuota({ plan: json.plan, remaining: json.remaining, daily_limit: json.daily_limit });
+        }
+      })
+      .catch(() => {});
+  }, [user?.id]);
+
+  useEffect(() => {
     if (sessionId) {
       fetch(`/api/user-preferences?session_id=${encodeURIComponent(sessionId)}`)
         .then(r => r.json())
         .then(json => { if (json.success && json.search_history?.length) setRecentSearches(json.search_history); })
         .catch(() => {
-          try {
-            const h = JSON.parse(localStorage.getItem('moveiq_history') ?? '[]');
-            if (h.length) setRecentSearches(h);
-          } catch {}
+          try { const h = JSON.parse(localStorage.getItem('moveiq_history') ?? '[]'); if (h.length) setRecentSearches(h); } catch {}
         });
     }
-    // URL 파라미터로 주소가 넘어온 경우 자동 분석
     const addr = searchParams.get('address');
     if (addr) runAnalysis(addr);
   }, []);
@@ -107,12 +192,28 @@ function AnalysisContent() {
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, session_id: sessionId || undefined }),
+        body: JSON.stringify({
+          address,
+          session_id: sessionId || undefined,
+          user_id:    user?.id  || undefined,   // 로그인 유저만 플랜 체크
+        }),
       });
       const json = await res.json();
       clearInterval(iv);
-      if (json.success) { setResult(json.data); setRTab('overview'); }
-      else alert(json.message ?? '분석에 실패했습니다.');
+
+      if (json.success) {
+        setResult(json.data);
+        setRTab('overview');
+        // 쿼터 정보 업데이트
+        if (json.quota) setQuota(json.quota);
+      } else if (json.code === 'QUOTA_EXCEEDED') {
+        // 횟수 초과 → 업그레이드 모달
+        setUpgradeReason(json.message ?? '분석 횟수를 모두 사용했습니다.');
+        setShowUpgrade(true);
+        if (json.quota) setQuota({ plan: json.plan, remaining: 0, daily_limit: json.daily_limit });
+      } else {
+        alert(json.message ?? '분석에 실패했습니다.');
+      }
     } catch { clearInterval(iv); alert('네트워크 오류가 발생했습니다.'); }
     finally { setLoading(false); }
   }
@@ -126,16 +227,54 @@ function AnalysisContent() {
     { icon:'🛍️', name:'상권 활성도', score:D.scores.commerce,    detail:D.commerce_detail },
     { icon:'🏗️', name:'개발 잠재력', score:D.scores.development, detail:D.development_detail },
   ];
-
   const TABS = [
     ['overview','종합'],['noise','소음★'],['school','학군★'],
     ['traffic','교통'],['infra','인프라'],['commerce','상권'],
     ['dev','개발'],['review','후기'],['jeonse','전세 위험'],
   ];
 
+  // PDF 저장 가능 여부: one_time 또는 premium 플랜
+  const canPdf = quota && (quota.plan === 'one_time' || quota.plan === 'premium');
+
   return (
     <div className={styles.page}>
-      {/* 검색 */}
+
+      {/* ── 플랜 상태 바 ── */}
+      {user && quota && (
+        <div className={styles.quotaBar}>
+          <div className={styles.quotaLeft}>
+            <span
+              className={styles.planBadge}
+              style={{ color: PLAN_LABEL[quota.plan]?.color, background: PLAN_LABEL[quota.plan]?.bg }}
+            >
+              {PLAN_LABEL[quota.plan]?.label ?? quota.plan}
+            </span>
+            {quota.plan === 'free' && (
+              <span className={styles.quotaText}>
+                오늘 남은 분석:&nbsp;
+                <strong style={{ color: quota.remaining === 0 ? '#e74c3c' : 'var(--main)' }}>
+                  {quota.remaining}/{quota.daily_limit}회
+                </strong>
+              </span>
+            )}
+            {quota.plan === 'one_time' && (
+              <span className={styles.quotaText}>
+                남은 분석: <strong style={{ color: 'var(--main)' }}>{quota.remaining}회</strong>
+              </span>
+            )}
+            {quota.plan === 'premium' && (
+              <span className={styles.quotaText} style={{ color: 'var(--main)' }}>무제한 분석</span>
+            )}
+          </div>
+          {quota.plan === 'free' && (
+            <button className={styles.quotaUpgradeBtn} onClick={() => { setUpgradeReason('더 많은 분석을 위해 유료 플랜을 이용해보세요.'); setShowUpgrade(true); }}>
+              업그레이드
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── 검색 ── */}
       <div className={styles.searchBox}>
         <div className={styles.searchRow}>
           <input
@@ -146,14 +285,12 @@ function AnalysisContent() {
           />
           <button className={styles.btnAnalyze} onClick={() => runAnalysis()}>분석하기</button>
         </div>
-
         <div className={styles.quickChips}>
           <span className={styles.quickLabel}>추천:</span>
           {['마포구 성산동', '강남구 역삼동', '용산구 이태원동', '송파구 잠실동', '서대문구 연희동'].map(a => (
             <button key={a} className={styles.chip} onClick={() => runAnalysis(a)}>{a}</button>
           ))}
         </div>
-
         {recentSearches.length > 0 && (
           <div className={styles.recentRow}>
             <span className={styles.recentLabel}>최근 검색:</span>
@@ -169,7 +306,7 @@ function AnalysisContent() {
         )}
       </div>
 
-      {/* 로딩 */}
+      {/* ── 로딩 ── */}
       {loading && (
         <div className={styles.loadingBox}>
           <div className={styles.spinner} />
@@ -183,7 +320,7 @@ function AnalysisContent() {
         </div>
       )}
 
-      {/* 결과 */}
+      {/* ── 결과 ── */}
       {!loading && (
         <div className={styles.resultBox}>
           {!result && (
@@ -228,14 +365,32 @@ function AnalysisContent() {
                   </div>
                 ))}
               </div>
+
+              {/* PDF CTA — 플랜별 표시 분기 */}
               <div className={styles.pdfCta}>
-                <div><strong>풀 리포트 PDF 저장</strong><small>6개 레이어 + 비교 3곳 + AI 평가 + 학군 상세</small></div>
-                <button className={styles.btnPdf} disabled>📄 준비 중</button>
+                <div>
+                  <strong>풀 리포트 PDF 저장</strong>
+                  <small>6개 레이어 + 비교 3곳 + AI 평가 + 학군 상세</small>
+                </div>
+                {canPdf ? (
+                  <button
+                    className={styles.btnPdf}
+                    onClick={() => alert('PDF 저장 기능은 현재 준비 중입니다.')}
+                  >
+                    📄 PDF 저장
+                  </button>
+                ) : (
+                  <button
+                    className={`${styles.btnPdf} ${styles.btnPdfLocked}`}
+                    onClick={() => { setUpgradeReason('PDF 저장은 이사 한 번 플랜 이상에서 이용 가능합니다.'); setShowUpgrade(true); }}
+                  >
+                    🔒 PDF 저장 (잠금)
+                  </button>
+                )}
               </div>
             </>
           )}
 
-          {/* 소음 */}
           {rTab === 'noise' && (
             <div className={styles.noisePanel}>
               <div className={styles.panelTitle}>시간대별 소음 위험도</div>
@@ -254,7 +409,6 @@ function AnalysisContent() {
             </div>
           )}
 
-          {/* 학군 */}
           {rTab === 'school' && (
             <div>
               <div className={styles.aiBox}><span>📚</span><p>{D.school_detail}</p></div>
@@ -278,7 +432,6 @@ function AnalysisContent() {
           {rTab === 'commerce' && <div className={styles.aiBox}><span>🛍️</span><p>{D.commerce_detail}</p></div>}
           {rTab === 'dev'      && <div className={styles.aiBox}><span>🏗️</span><p>{D.development_detail}</p></div>}
 
-          {/* 거주 후기 */}
           {rTab === 'review' && (
             <div>
               {D.reviews?.length ? (
@@ -299,20 +452,18 @@ function AnalysisContent() {
                 <div className={styles.noData}>
                   <div style={{ fontSize:36, marginBottom:12 }}>📝</div>
                   <p>아직 등록된 거주후기가 없습니다.</p>
-                  <p style={{ fontSize:12, color:'var(--muted2)', margin:'6px 0 16px' }}>첫 번째 후기를 남겨보세요!</p>
                   <Link href="/community" className={styles.btnGoComm}>✏️ 후기 작성하러 가기</Link>
                 </div>
               )}
             </div>
           )}
 
-          {/* 전세 위험도 */}
           {rTab === 'jeonse' && (
             <div>
               {D.jeonse_risk ? (
                 <>
                   <div className={`${styles.jeonseRiskBadge} ${styles[`jeonseRisk_${D.jeonse_risk.level}` as keyof typeof styles]}`}>
-                    {D.jeonse_risk.level === 'high' ? '🔴 전세사기 위험 지역' : D.jeonse_risk.level === 'medium' ? '🟡 전세사기 주의 필요' : '🟢 비교적 안전한 지역'}
+                    {D.jeonse_risk.level === 'high' ? '🔴 전세사기 위험' : D.jeonse_risk.level === 'medium' ? '🟡 주의 필요' : '🟢 비교적 안전'}
                   </div>
                   <div className={styles.aiBox} style={{ marginTop:12 }}><span>🤖</span><p>{D.jeonse_risk.reason}</p></div>
                   <div className={styles.jeonseChecklist}>
@@ -328,14 +479,7 @@ function AnalysisContent() {
                   <p>주소를 입력하면 전세사기 위험도를 분석합니다.</p>
                   <div className={styles.jeonseManual}>
                     <div className={styles.panelTitle}>📋 전세계약 기본 체크리스트</div>
-                    {[
-                      '등기부등본 열람 (계약 당일·잔금 직전 재확인)',
-                      '전세가율 80% 초과 여부 확인 (위험 신호)',
-                      '선순위 채권·근저당 합계 확인',
-                      '임대인 신원 확인 (등기부등본 소유자와 일치)',
-                      '전세보증보험 가입 가능 여부 확인 (HUG/SGI)',
-                      '확정일자 즉시 신청 (전입신고 당일)',
-                    ].map((item, i) => (
+                    {['등기부등본 열람 (계약 당일·잔금 직전 재확인)','전세가율 80% 초과 여부 확인','선순위 채권·근저당 합계 확인','임대인 신원 확인','전세보증보험 가입 가능 여부 확인 (HUG/SGI)','확정일자 즉시 신청 (전입신고 당일)'].map((item, i) => (
                       <div key={i} className={styles.jeonseCheckItem}><span className={styles.jeonseNum}>{i + 1}</span><span>{item}</span></div>
                     ))}
                   </div>
@@ -344,6 +488,15 @@ function AnalysisContent() {
             </div>
           )}
         </div>
+      )}
+
+      {/* 업그레이드 모달 */}
+      {showUpgrade && (
+        <UpgradeModal
+          onClose={() => setShowUpgrade(false)}
+          plan={quota?.plan ?? 'free'}
+          reason={upgradeReason}
+        />
       )}
     </div>
   );
@@ -363,11 +516,9 @@ export default function AnalysisPage() {
           <AuthButton />
         </div>
       </header>
-
       <Suspense fallback={<div className={styles.loading}>로딩 중...</div>}>
         <AnalysisContent />
       </Suspense>
-
       <nav className={styles.mobileNav}>
         <Link href="/"          className={styles.mobileNavBtn}><span>🏠</span>홈</Link>
         <Link href="/noise-map" className={styles.mobileNavBtn}><span>🔊</span>소음 지도</Link>
