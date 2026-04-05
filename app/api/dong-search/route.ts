@@ -1,60 +1,85 @@
-// app/api/dong-search/route.ts
-// 동네(읍면동) 자동완성 — Naver Geocoding으로 실존 여부 검증
+// app/api/dong-search/route.ts — v2
+// ─────────────────────────────────────────────────────────────
+// 로컬 데이터 기반 동네 자동완성 (Naver API 의존 없음)
+// 검색 우선순위:
+//   1순위: 동 이름 시작 일치  (예: "성산" → 성산1동, 성산2동)
+//   2순위: 동 이름 포함       (예: "산동" → 성산동, 죽산동...)
+//   3순위: 구 이름 포함       (예: "마포" → 마포구 전체 동)
+//   4순위: 시도 + 구 복합     (예: "서울 강남" → 강남구 전체)
+// ─────────────────────────────────────────────────────────────
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rate-limit';
-import { apiError } from '@/lib/error-handler';
+import { KOREA_DONGS } from '@/lib/korea-dongs';
+
+// 표시 라벨 생성: "구 동" 형태 (시도는 생략 — 동 이름만으로 충분)
+function makeLabel(sido: string, gu: string, dong: string): string {
+  // 세종은 구 없음
+  if (gu === '세종') return dong;
+  // 경기·강원 등 광역은 시군구 포함
+  const needsGu = ['경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남'];
+  if (needsGu.includes(sido)) return `${gu} ${dong}`;
+  return `${gu} ${dong}`;
+}
 
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 30 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 60 })) {
+    return NextResponse.json({ success: false, message: '요청이 너무 많습니다.' }, { status: 429 });
+  }
 
   const q = req.nextUrl.searchParams.get('q')?.trim() ?? '';
-  if (!q || q.length < 2) return NextResponse.json({ success: true, results: [] });
+  if (!q || q.length < 1) return NextResponse.json({ success: true, results: [] });
 
-  const clientId     = process.env.NAVER_MAP_CLIENT_ID;
-  const clientSecret = process.env.NAVER_MAP_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return apiError('CONFIG_ERROR', 500);
+  const MAX = 8;
+  const normalize = (s: string) => s.replace(/\s+/g, '').toLowerCase();
+  const nq = normalize(q);
 
-  try {
-    // Naver Geocoding으로 입력값 + "동" 검색
-    const query = q.endsWith('동') || q.endsWith('읍') || q.endsWith('면') ? q : `${q}`;
-    const res = await fetch(
-      `https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodeURIComponent(query)}&count=5`,
-      {
-        headers: {
-          'X-NCP-APIGW-API-KEY-ID': clientId,
-          'X-NCP-APIGW-API-KEY':    clientSecret,
-        },
-        signal: AbortSignal.timeout(4000),
-      }
-    );
+  // 검색 버킷 (우선순위별)
+  const exact:   typeof KOREA_DONGS = [];  // 동 이름 시작 일치
+  const contains:typeof KOREA_DONGS = [];  // 동 이름 포함
+  const guMatch: typeof KOREA_DONGS = [];  // 구/시 이름 포함
+  const seen = new Set<string>();
 
-    if (!res.ok) return NextResponse.json({ success: true, results: [] });
+  for (const entry of KOREA_DONGS) {
+    const [sido, gu, dong] = entry;
+    const ndong = normalize(dong);
+    const ngu   = normalize(gu);
+    const nsido = normalize(sido);
+    const label = makeLabel(sido, gu, dong);
+    const nlabel = normalize(label);
 
-    const data = await res.json();
-    const addresses: any[] = data.addresses ?? [];
+    if (seen.has(label)) continue;
 
-    // 읍면동 레벨까지만 추출 (도로명/번지 제외)
-    const seen = new Set<string>();
-    const results: { label: string; lat: number; lng: number }[] = [];
-
-    for (const item of addresses) {
-      // jibunAddress에서 구+동 추출
-      const parts = (item.jibunAddress || item.roadAddress || '').split(' ');
-      // "서울특별시 마포구 성산동" 형태에서 마지막 행정구역 단위까지
-      const dongIdx = parts.findIndex((p: string) =>
-        p.endsWith('동') || p.endsWith('읍') || p.endsWith('면') || p.endsWith('리')
-      );
-      if (dongIdx < 0) continue;
-      const label = parts.slice(0, dongIdx + 1).join(' ');
-      if (seen.has(label)) continue;
-      seen.add(label);
-      results.push({ label, lat: parseFloat(item.y), lng: parseFloat(item.x) });
-      if (results.length >= 5) break;
+    // 1. 동 이름 시작
+    if (ndong.startsWith(nq)) {
+      exact.push(entry); seen.add(label); continue;
     }
-
-    return NextResponse.json({ success: true, results });
-  } catch {
-    return NextResponse.json({ success: true, results: [] });
+    // 2. 전체 라벨 포함 (구+동 같이 검색: "마포 성산")
+    if (nlabel.includes(nq)) {
+      contains.push(entry); seen.add(label); continue;
+    }
+    // 3. 동 이름 포함
+    if (ndong.includes(nq)) {
+      contains.push(entry); seen.add(label); continue;
+    }
+    // 4. 구/시 이름 포함
+    if (ngu.includes(nq) || nsido.includes(nq)) {
+      guMatch.push(entry); seen.add(label);
+    }
   }
+
+  // 버킷 순서로 최대 MAX개 반환
+  const merged = [...exact, ...contains, ...guMatch].slice(0, MAX);
+
+  const results = merged.map(([sido, gu, dong]) => ({
+    label: makeLabel(sido, gu, dong),
+    sido,
+    gu,
+    dong,
+    // 좌표는 Naver 없이 제공 불가 — 클라이언트에서 입력값 기반 사용
+    lat: 0,
+    lng: 0,
+  }));
+
+  return NextResponse.json({ success: true, results });
 }
