@@ -210,3 +210,150 @@
   display: block; font-size: 11px; color: #aaa;
   padding: 10px 12px; text-align: center;
 }
+
+/* ══ v4 추가 스타일 — 글쓰기/댓글/상세 ══ */
+
+/* 로고마크 */
+.logoMark {
+  width: 28px; height: 28px; background: #646F4B; border-radius: 7px;
+  position: relative; flex-shrink: 0;
+}
+.logoMark::after { content: ''; position: absolute; inset: 6px; background: #BFD2BF; border-radius: 50%; }
+
+/* 검색 지우기 버튼 */
+.searchClear { background: none; border: none; cursor: pointer; color: #7a8570; font-size: 13px; padding: 0 4px; }
+
+/* 동네·카테고리 태그 */
+.dongTag, .catTag { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; margin-right: 6px; }
+.dongTag { background: rgba(100,111,75,.1); color: #646F4B; }
+.catTag  { background: rgba(100,111,75,.07); color: #7a8570; }
+
+/* 스켈레톤 로딩 */
+.feedLoading { display: flex; flex-direction: column; gap: 12px; }
+.skeletonCard { height: 110px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 12px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* 게시글 카드 인터랙션 */
+.postCard { cursor: pointer; }
+.postCard:hover { box-shadow: 0 4px 20px rgba(100,111,75,.12); transform: translateY(-1px); }
+
+/* 통계 버튼 */
+.statBtn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; color: #7a8570; padding: 0; transition: color .15s;
+}
+.statBtnLiked { color: #e74c3c; }
+.statItem { font-size: 13px; color: #7a8570; }
+
+/* 더 보기 버튼 */
+.btnLoadMore {
+  width: 100%; margin-top: 16px; padding: 13px;
+  background: #fff; border: 1px solid rgba(100,111,75,.2);
+  border-radius: 10px; font-size: 14px; font-weight: 600;
+  color: #646F4B; cursor: pointer; transition: all .2s;
+}
+.btnLoadMore:hover:not(:disabled) { background: rgba(100,111,75,.06); }
+.btnLoadMore:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 모달 닫기 버튼 */
+.modalClose { background: #f5f7f3; border: none; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; font-size: 14px; color: #7a8570; transition: background .15s; }
+.modalClose:hover { background: #edf1eb; }
+
+/* 대형 모달 (상세) */
+.modalLarge { max-width: 720px; max-height: 88vh; overflow-y: auto; }
+
+/* 글쓰기 폼 */
+.writeForm { display: flex; flex-direction: column; gap: 14px; }
+.formRow   { display: flex; gap: 12px; }
+.formGroup { display: flex; flex-direction: column; gap: 5px; }
+.formLabel { font-size: 12px; font-weight: 700; color: #7a8570; }
+.formInput {
+  padding: 10px 13px; background: #f7faf5; border: 1.5px solid rgba(100,111,75,.15);
+  border-radius: 8px; font-size: 14px; color: #1a1e15; outline: none;
+  font-family: 'Pretendard', sans-serif; transition: border-color .2s;
+}
+.formInput:focus { border-color: #646F4B; background: #fff; }
+.formTextarea {
+  padding: 12px 13px; background: #f7faf5; border: 1.5px solid rgba(100,111,75,.15);
+  border-radius: 8px; font-size: 14px; color: #1a1e15; outline: none;
+  resize: vertical; font-family: 'Pretendard', sans-serif; transition: border-color .2s;
+  min-height: 160px;
+}
+.formTextarea:focus { border-color: #646F4B; background: #fff; }
+.charCount { font-size: 11px; color: #a4ad98; text-align: right; }
+.formError { font-size: 13px; color: #e74c3c; }
+.formActions { display: flex; gap: 8px; justify-content: flex-end; }
+.btnCancel {
+  padding: 11px 20px; background: #f5f7f3; border: 1px solid rgba(100,111,75,.2);
+  border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; color: #7a8570;
+}
+.btnCancel:hover { background: #edf1eb; }
+.btnSubmitPost {
+  padding: 11px 24px; background: #646F4B; color: #fff; border: none;
+  border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .2s;
+}
+.btnSubmitPost:hover:not(:disabled) { background: #4a5236; }
+.btnSubmitPost:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 게시글 상세 */
+.detailLoading { display: flex; align-items: center; justify-content: center; padding: 60px; }
+.detailEmpty   { text-align: center; padding: 48px; color: #7a8570; }
+.detailBody    { display: flex; flex-direction: column; gap: 24px; }
+.detailHeader  { }
+.detailMeta    { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.detailCategory { font-size: 12px; font-weight: 700; color: #646F4B; background: rgba(100,111,75,.1); padding: 4px 10px; border-radius: 20px; }
+.detailDong    { font-size: 12px; color: #7a8570; background: #f5f7f3; padding: 4px 10px; border-radius: 20px; }
+.detailTitle   { font-size: 20px; font-weight: 800; color: #1a1e15; line-height: 1.4; margin-bottom: 10px; }
+.detailAuthorRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.detailAuthor  { font-size: 13px; font-weight: 600; color: #3d4535; }
+.detailDate    { font-size: 12px; color: #a4ad98; }
+.btnDelete     { font-size: 11px; color: #e74c3c; background: none; border: 1px solid #e74c3c; border-radius: 4px; padding: 2px 8px; cursor: pointer; margin-left: auto; }
+.btnDelete:hover { background: #fdecea; }
+.detailContent { font-size: 15px; color: #3d4535; line-height: 1.85; }
+.detailContent p { margin-bottom: 10px; }
+.detailActions { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid rgba(100,111,75,.1); border-bottom: 1px solid rgba(100,111,75,.1); }
+.btnLike {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; background: #f5f7f3; border: 1px solid rgba(100,111,75,.2);
+  border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s;
+  color: #7a8570;
+}
+.btnLike:hover { background: rgba(100,111,75,.1); border-color: #646F4B; color: #646F4B; }
+.btnLiked { color: #e74c3c !important; border-color: #e74c3c !important; background: #fdecea !important; }
+
+/* 댓글 */
+.commentSection { }
+.commentTitle   { font-size: 14px; font-weight: 700; color: #1a1e15; margin-bottom: 14px; }
+.commentEmpty   { font-size: 13px; color: #a4ad98; text-align: center; padding: 24px; background: #f7faf5; border-radius: 10px; }
+.commentList    { display: flex; flex-direction: column; gap: 2px; }
+.commentItem    { background: #f7faf5; border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+.commentTop     { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.commentAuthor  { font-size: 13px; font-weight: 700; color: #3d4535; }
+.commentDate    { font-size: 11px; color: #a4ad98; }
+.btnDeleteComment { font-size: 11px; color: #a4ad98; background: none; border: none; cursor: pointer; margin-left: auto; }
+.btnDeleteComment:hover { color: #e74c3c; }
+.commentContent { font-size: 14px; color: #3d4535; line-height: 1.7; margin-bottom: 8px; }
+.btnLikeComment { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #7a8570; background: none; border: none; cursor: pointer; padding: 0; }
+.btnLikeComment.btnLiked { color: #e74c3c; }
+
+/* 댓글 입력 폼 */
+.commentForm { margin-top: 16px; background: #fff; border: 1.5px solid rgba(100,111,75,.15); border-radius: 12px; padding: 14px; }
+.commentInput { width: 100%; border: none; background: none; outline: none; font-size: 14px; color: #1a1e15; font-family: 'Pretendard', sans-serif; resize: none; line-height: 1.65; }
+.commentFormBottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; border-top: 1px solid rgba(100,111,75,.1); padding-top: 10px; }
+.btnSubmitComment {
+  padding: 8px 18px; background: #646F4B; color: #fff; border: none;
+  border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .2s;
+}
+.btnSubmitComment:hover:not(:disabled) { background: #4a5236; }
+.btnSubmitComment:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 스피너 */
+.spinner { width: 32px; height: 32px; border: 3px solid rgba(100,111,75,.2); border-top-color: #646F4B; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .formRow { flex-direction: column; }
+  .modalLarge { max-height: 92vh; }
+  .detailTitle { font-size: 17px; }
+}

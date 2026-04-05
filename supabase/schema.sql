@@ -285,3 +285,87 @@ CREATE TRIGGER feedbacks_updated_at
 -- ══════════════════════════════════════════════════════════════
 ALTER TABLE user_preferences
   ADD COLUMN IF NOT EXISTS watched_addresses JSONB NOT NULL DEFAULT '[]';
+
+-- ══════════════════════════════════════════════════════════════
+-- v4 커뮤니티 테이블 — 2026.04
+-- ══════════════════════════════════════════════════════════════
+
+-- ── community_posts ───────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS community_posts (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  session_id  TEXT,                         -- 비로그인 임시 식별자
+  nickname    TEXT NOT NULL DEFAULT '익명',
+  dong        TEXT NOT NULL DEFAULT '전체', -- 행정동 (예: 성산동)
+  category    TEXT NOT NULL DEFAULT '동네 질문'
+              CHECK (category IN ('동네 질문','생활 꿀팁','소음 후기','이사 후기','동네 소식','이웃 구해요','건물 후기')),
+  title       TEXT NOT NULL CHECK (char_length(title) BETWEEN 2 AND 100),
+  content     TEXT NOT NULL CHECK (char_length(content) BETWEEN 2 AND 3000),
+  likes       INT  NOT NULL DEFAULT 0,
+  comments    INT  NOT NULL DEFAULT 0,      -- 댓글 수 (캐시)
+  is_verified BOOLEAN NOT NULL DEFAULT FALSE, -- 주민 인증 여부
+  ip          TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_posts_dong      ON community_posts(dong, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_category  ON community_posts(category, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_user      ON community_posts(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_created   ON community_posts(created_at DESC);
+
+ALTER TABLE community_posts ENABLE ROW LEVEL SECURITY;
+
+-- 누구나 읽기
+CREATE POLICY "posts_select_all"
+  ON community_posts FOR SELECT USING (true);
+
+-- INSERT / UPDATE / DELETE: service_role 전용 (API Route에서만)
+
+DROP TRIGGER IF EXISTS posts_updated_at ON community_posts;
+CREATE TRIGGER posts_updated_at
+  BEFORE UPDATE ON community_posts
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ── community_comments ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS community_comments (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  post_id     UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+  user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  session_id  TEXT,
+  nickname    TEXT NOT NULL DEFAULT '익명',
+  content     TEXT NOT NULL CHECK (char_length(content) BETWEEN 1 AND 1000),
+  likes       INT  NOT NULL DEFAULT 0,
+  is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  ip          TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comments_post    ON community_comments(post_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_comments_user    ON community_comments(user_id);
+
+ALTER TABLE community_comments ENABLE ROW LEVEL SECURITY;
+
+-- 누구나 읽기
+CREATE POLICY "comments_select_all"
+  ON community_comments FOR SELECT USING (true);
+
+-- INSERT / UPDATE / DELETE: service_role 전용
+
+-- ── community_likes ───────────────────────────────────────────
+-- 중복 좋아요 방지
+CREATE TABLE IF NOT EXISTS community_likes (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  target_id  UUID NOT NULL,              -- post_id 또는 comment_id
+  target_type TEXT NOT NULL CHECK (target_type IN ('post','comment')),
+  session_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (target_id, target_type, session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_likes_target ON community_likes(target_id, target_type);
+
+ALTER TABLE community_likes ENABLE ROW LEVEL SECURITY;
+-- 누구나 조회 (좋아요 여부 확인용)
+CREATE POLICY "likes_select_all" ON community_likes FOR SELECT USING (true);
+-- INSERT / DELETE: service_role 전용
