@@ -1,0 +1,146 @@
+/* verify.module.css — 주민 인증 모달 */
+
+.modalBg {
+  position: fixed; inset: 0; z-index: 700;
+  background: rgba(0,0,0,.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.modal {
+  background: #fff; border-radius: 20px;
+  max-width: 480px; width: 100%;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.15);
+}
+.modalHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 0; margin-bottom: 4px;
+}
+.modalTitle { font-size: 18px; font-weight: 800; color: #1a1e15; }
+.modalClose {
+  background: #f5f7f3; border: none; cursor: pointer;
+  width: 30px; height: 30px; border-radius: 50%;
+  font-size: 14px; color: #7a8570;
+}
+.body { padding: 16px 24px 28px; display: flex; flex-direction: column; gap: 16px; }
+
+/* 소개 */
+.intro { font-size: 14px; color: #3d4535; line-height: 1.7; }
+.intro strong { color: #646F4B; }
+
+/* 방법 선택 카드 */
+.methodGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.methodCard {
+  background: #f7faf5; border: 2px solid rgba(100,111,75,.15);
+  border-radius: 14px; padding: 18px 14px; cursor: pointer;
+  text-align: center; transition: all .2s;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.methodCard:hover { border-color: #646F4B; background: #fff; }
+.methodCardActive { border-color: #646F4B; background: #fff; box-shadow: 0 0 0 3px rgba(100,111,75,.1); }
+.methodIcon { font-size: 28px; }
+.methodName { font-size: 14px; font-weight: 700; color: #1a1e15; }
+.methodDesc { font-size: 11px; color: #7a8570; line-height: 1.5; }
+.methodTag { font-size: 10px; font-weight: 700; color: #646F4B; background: rgba(100,111,75,.1); padding: 3px 8px; border-radius: 10px; }
+
+/* 동네 입력 */
+.dongGroup { display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: 12px; font-weight: 700; color: #7a8570; }
+.input {
+  padding: 11px 14px; background: #f7faf5;
+  border: 1.5px solid rgba(100,111,75,.2); border-radius: 10px;
+  font-size: 14px; color: #1a1e15; outline: none;
+  font-family: 'Pretendard', sans-serif; transition: border-color .2s;
+}
+.input:focus { border-color: #646F4B; background: #fff; }
+
+.notice {
+  font-size: 12px; color: #7a8570; background: #f7faf5;
+  border-radius: 8px; padding: 10px 12px; line-height: 1.6;
+}
+
+/* 액션 */
+.actions { display: flex; gap: 8px; justify-content: flex-end; }
+.btnCancel {
+  padding: 11px 20px; background: #f5f7f3; border: 1px solid rgba(100,111,75,.2);
+  border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; color: #7a8570;
+}
+.btnNext, .btnSubmit {
+  padding: 11px 24px; background: #646F4B; color: #fff;
+  border: none; border-radius: 10px; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background .2s;
+}
+.btnNext:hover:not(:disabled), .btnSubmit:hover:not(:disabled) { background: #4a5236; }
+.btnNext:disabled, .btnSubmit:disabled { opacity: .5; cursor: not-allowed; }
+.btnDone {
+  width: 100%; padding: 13px; background: #646F4B; color: #fff;
+  border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.btnDone:hover { background: #4a5236; }
+
+/* 뒤로 */
+.stepHeader { display: flex; align-items: center; gap: 10px; }
+.btnBack { background: none; border: none; cursor: pointer; font-size: 14px; color: #7a8570; padding: 0; }
+.stepTitle { font-size: 15px; font-weight: 700; color: #1a1e15; }
+
+/* GPS */
+.gpsBox {
+  background: #f7faf5; border: 1.5px solid rgba(100,111,75,.2);
+  border-radius: 14px; padding: 28px 20px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.gpsIcon { font-size: 44px; }
+.gpsDesc { font-size: 14px; color: #3d4535; line-height: 1.7; }
+.gpsDesc strong { color: #646F4B; }
+.gpsCoords { font-size: 12px; color: #a4ad98; display: block; margin-top: 4px; }
+.gpsHint { font-size: 12px; color: #7a8570; line-height: 1.6; }
+.gpsSpinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(100,111,75,.2); border-top-color: #646F4B;
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.btnGps {
+  padding: 12px 24px; background: #646F4B; color: #fff; border: none;
+  border-radius: 24px; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.btnGps:hover { background: #4a5236; }
+.gpsNote { font-size: 12px; color: #a4ad98; line-height: 1.6; text-align: center; }
+
+/* 계약 정보 */
+.contractInfo { background: rgba(100,111,75,.06); border-radius: 10px; padding: 14px 16px; }
+.contractInfo p { font-size: 14px; color: #3d4535; line-height: 1.7; }
+.contractInfo strong { color: #646F4B; }
+.contractNote { font-size: 11px; color: #a4ad98; margin-top: 6px; }
+.formGroup { display: flex; flex-direction: column; gap: 6px; }
+.typeGrid { display: flex; gap: 8px; }
+.typeBtn {
+  flex: 1; padding: 10px; background: #f7faf5;
+  border: 1.5px solid rgba(100,111,75,.2); border-radius: 8px;
+  font-size: 13px; font-weight: 600; cursor: pointer; color: #7a8570; transition: all .15s;
+}
+.typeBtn:hover { border-color: #646F4B; color: #646F4B; }
+.typeBtnActive { border-color: #646F4B; background: rgba(100,111,75,.08); color: #646F4B; }
+.phaseNotice {
+  font-size: 12px; color: #7a8570; background: #fff9ed;
+  border: 1px solid rgba(224,168,75,.3); border-radius: 8px;
+  padding: 10px 12px; line-height: 1.6;
+}
+
+/* 결과 */
+.resultBox { text-align: center; padding: 24px 0; }
+.resultIcon { font-size: 52px; margin-bottom: 14px; }
+.resultTitle { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
+.resultSuccess { color: #646F4B; }
+.resultError   { color: #e74c3c; }
+.resultMsg { font-size: 14px; color: #3d4535; line-height: 1.75; margin-bottom: 16px; }
+.resultBadge {
+  display: inline-block; font-size: 13px; color: #646F4B;
+  background: rgba(100,111,75,.1); border: 1px solid rgba(100,111,75,.2);
+  border-radius: 10px; padding: 10px 16px; line-height: 1.6; margin-bottom: 16px;
+}
+
+@media (max-width: 480px) {
+  .methodGrid { grid-template-columns: 1fr; }
+  .modal { max-height: 95vh; }
+  .body { padding: 14px 16px 24px; }
+}

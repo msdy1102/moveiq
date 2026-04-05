@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import AuthButton from '@/app/components/AuthButton';
 import { useAuth } from '@/app/components/useAuth';
+import ResidentVerifyModal from './ResidentVerifyModal';
 import styles from './community.module.css';
 
 // ── 타입 ──────────────────────────────────────────────────────
@@ -327,7 +328,10 @@ function PostDetailModal({
 
             {/* 댓글 목록 */}
             <div className={styles.commentSection}>
-              <div className={styles.commentTitle}>댓글 {post.comments.length}개</div>
+              <div className={styles.commentTitle}>
+                댓글
+                <span className={styles.commentCount}>{post.comments.length}</span>
+              </div>
               {post.comments.length === 0 ? (
                 <div className={styles.commentEmpty}>첫 번째 댓글을 남겨보세요 💬</div>
               ) : (
@@ -408,8 +412,10 @@ export default function CommunityPage() {
   const [dongSearching, setDongSearching]  = useState(false);
   const dongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [writeOpen,      setWriteOpen]      = useState(false);
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [writeOpen,       setWriteOpen]       = useState(false);
+  const [selectedPostId,  setSelectedPostId]  = useState<string | null>(null);
+  const [verifyOpen,      setVerifyOpen]       = useState(false);
+  const [verifyStatus,    setVerifyStatus]     = useState<{ is_verified: boolean; verified_dong: string | null } | null>(null);
 
   const [sessionId] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
@@ -431,6 +437,17 @@ export default function CommunityPage() {
       })
       .catch(() => { try { const s = JSON.parse(localStorage.getItem('community_dongs') ?? '[]'); if (s.length) setDongs(s); } catch {} });
   }, [sessionId]);
+
+  // 인증 상태 로드
+  useEffect(() => {
+    if (!sessionId) return;
+    const params = new URLSearchParams({ session_id: sessionId });
+    if (user?.id) params.set('user_id', user.id);
+    fetch(`/api/resident-verify?${params}`)
+      .then(r => r.json())
+      .then(json => { if (json.success) setVerifyStatus({ is_verified: json.is_verified, verified_dong: json.verified_dong }); })
+      .catch(() => {});
+  }, [sessionId, user?.id]);
 
   // 게시글 목록 로드
   const loadPosts = useCallback(async (reset = false) => {
@@ -521,24 +538,45 @@ export default function CommunityPage() {
     <>
       {/* ── 헤더 ── */}
       <header className={styles.header}>
-        <Link href="/" className={styles.logo}>
-          <div className={styles.logoMark} />
-          <span className={styles.logoText}>무브IQ</span>
-        </Link>
-        <nav className={styles.headerNav}>
-          <Link href="/noise-map" className={styles.navLink}>소음 지도</Link>
-          <Link href="/analysis"  className={styles.navLink}>입지 분석</Link>
-          <Link href="/community" className={`${styles.navLink} ${styles.navLinkActive}`}>커뮤니티</Link>
-        </nav>
-        <AuthButton />
+        <div className={styles.headerInner}>
+          <Link href="/" className={styles.logo}>
+            <div className={styles.logoMark} />
+            <span className={styles.logoText}>무브IQ</span>
+          </Link>
+          <nav className={styles.headerNav}>
+            <Link href="/noise-map" className={styles.navLink}>소음 지도</Link>
+            <Link href="/analysis"  className={styles.navLink}>입지 분석</Link>
+            <Link href="/community" className={`${styles.navLink} ${styles.navLinkActive}`}>커뮤니티</Link>
+          </nav>
+          <div className={styles.headerActions}>
+            <AuthButton />
+          </div>
+        </div>
       </header>
 
       <main className={styles.main}>
         <section className={styles.pageHero}>
           <div className={styles.pageHeroInner}>
-            <div className={styles.heroBadge}>동네 커뮤니티</div>
+            <div className={styles.heroBadge}>
+              <span className={styles.heroBadgeDot} />
+              동네 커뮤니티
+            </div>
             <h1>살아본 사람만 아는 이야기</h1>
             <p>이사 예정자와 기존 주민이 함께 만드는 진짜 동네 정보</p>
+            <div className={styles.heroStats}>
+              <div className={styles.heroStat}>
+                <div className={styles.heroStatNum}>실시간</div>
+                <div className={styles.heroStatLabel}>게시글 업데이트</div>
+              </div>
+              <div className={styles.heroStat}>
+                <div className={styles.heroStatNum}>🏠 인증</div>
+                <div className={styles.heroStatLabel}>실거주 주민 배지</div>
+              </div>
+              <div className={styles.heroStat}>
+                <div className={styles.heroStatNum}>8개</div>
+                <div className={styles.heroStatLabel}>카테고리</div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -606,9 +644,26 @@ export default function CommunityPage() {
 
             {/* 인증 안내 */}
             <div className={styles.verifyInfo}>
-              <div className={styles.verifyTitle}>🏠 주민 인증이란?</div>
-              <p>실거주 주소를 인증한 회원은 <strong>🏠 배지</strong>가 표시됩니다.</p>
-              <button className={styles.btnVerify}>내 동네 인증하기 (준비 중)</button>
+              <div className={styles.verifyTitle}>🏠 주민 인증</div>
+              {verifyStatus?.is_verified ? (
+                <>
+                  <div className={styles.verifyBadgeRow}>
+                    <span className={styles.verifyBadgeActive}>✓ 인증 완료</span>
+                    <span className={styles.verifyBadgeDong}>{verifyStatus.verified_dong}</span>
+                  </div>
+                  <p>내 게시글과 댓글에 🏠 배지가 표시됩니다.</p>
+                  <button className={styles.btnVerifyRenew} onClick={() => setVerifyOpen(true)}>
+                    재인증하기
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p>실거주 동네를 인증하면 <strong>🏠 인증 주민 배지</strong>가 표시됩니다.</p>
+                  <button className={styles.btnVerify} onClick={() => setVerifyOpen(true)}>
+                    내 동네 인증하기
+                  </button>
+                </>
+              )}
             </div>
           </aside>
 
@@ -704,11 +759,28 @@ export default function CommunityPage() {
       {/* ── 푸터 ── */}
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
-          <div className={styles.footerLogo}>📍 무브IQ</div>
+          <div className={styles.footerLogo}>
+            <div className={styles.footerLogoMark} />
+            무브IQ
+          </div>
           <p className={styles.footerTagline}>이사 후 "알았다면 안 왔을 텐데"가 없는 세상을 만듭니다.</p>
           <div className={styles.footerCopy}>© 2026 MoveIQ. All rights reserved.</div>
         </div>
       </footer>
+
+      {/* 주민 인증 모달 */}
+      {verifyOpen && (
+        <ResidentVerifyModal
+          onClose={() => setVerifyOpen(false)}
+          onSuccess={dong => {
+            setVerifyStatus({ is_verified: true, verified_dong: dong });
+            setVerifyOpen(false);
+          }}
+          sessionId={sessionId}
+          userId={user?.id}
+          defaultDong={selectedDong !== '전체' ? selectedDong : dongs[0]}
+        />
+      )}
 
       {/* 글쓰기 모달 */}
       {writeOpen && (

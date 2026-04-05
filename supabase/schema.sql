@@ -369,3 +369,69 @@ ALTER TABLE community_likes ENABLE ROW LEVEL SECURITY;
 -- 누구나 조회 (좋아요 여부 확인용)
 CREATE POLICY "likes_select_all" ON community_likes FOR SELECT USING (true);
 -- INSERT / DELETE: service_role 전용
+
+-- ══════════════════════════════════════════════════════════════
+-- v5 주민 인증 테이블 — 2026.04
+-- ══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS resident_verifications (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id         UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  session_id      TEXT NOT NULL,
+
+  -- 인증 방식
+  method          TEXT NOT NULL DEFAULT 'gps'
+                  CHECK (method IN ('gps','contract')),
+
+  -- GPS 인증 결과
+  verified_lat    DOUBLE PRECISION,
+  verified_lng    DOUBLE PRECISION,
+  verified_dong   TEXT,           -- 인증된 행정동 (예: 성산동)
+  verified_gu     TEXT,           -- 구 (예: 마포구)
+
+  -- 계약 정보 인증 (contract 방식)
+  contract_date       DATE,       -- 계약한 날짜
+  contract_amount     BIGINT,     -- 계약 금액 (만원 단위)
+  contract_dong       TEXT,       -- 사는 동/호수
+  contract_type       TEXT        -- 전세 | 매매 | 월세
+                      CHECK (contract_type IN ('전세','매매','월세')),
+
+  -- 공개 데이터 비교 결과
+  match_score     INT,            -- 0-100 매칭 점수 (추후 공공데이터 연동 시 사용)
+  match_detail    JSONB,          -- 매칭 상세 정보
+
+  -- 상태
+  status          TEXT NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending','verified','rejected','expired')),
+  verified_at     TIMESTAMPTZ,
+  expires_at      TIMESTAMPTZ,    -- 인증 유효기간 (90일)
+  reject_reason   TEXT,
+
+  ip              TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_resident_user    ON resident_verifications(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_resident_session ON resident_verifications(session_id);
+CREATE INDEX IF NOT EXISTS idx_resident_dong    ON resident_verifications(verified_dong, status);
+
+ALTER TABLE resident_verifications ENABLE ROW LEVEL SECURITY;
+
+-- 본인 인증 내역만 조회
+CREATE POLICY "resident_select_own"
+  ON resident_verifications FOR SELECT
+  USING (session_id = current_setting('app.session_id', true));
+
+-- INSERT / UPDATE: service_role 전용 (API Route에서만)
+
+DROP TRIGGER IF EXISTS resident_updated_at ON resident_verifications;
+CREATE TRIGGER resident_updated_at
+  BEFORE UPDATE ON resident_verifications
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- profiles 테이블에 주민 인증 관련 컬럼 추가
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS verified_dong TEXT,       -- 인증된 행정동
+  ADD COLUMN IF NOT EXISTS is_resident   BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS resident_expires_at TIMESTAMPTZ;
