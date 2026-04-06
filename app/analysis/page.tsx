@@ -20,6 +20,30 @@ interface AnalysisResult {
   school_info?:{ name:string; type:string; distance:string; rating:string; note:string }[];
 }
 
+// 커뮤니티에서 가져오는 거주 후기
+interface CommunityReview {
+  id:          string;
+  nickname:    string;
+  dong:        string;
+  title:       string;
+  content:     string;
+  likes:       number;
+  is_verified: boolean;
+  created_at:  string;
+}
+
+// 전세사기 위험도 AI 분석 결과
+interface JeonseRisk {
+  risk_level:           'low' | 'medium' | 'high';
+  risk_score:           number;
+  jeonse_rate_estimate: string;
+  summary:              string;
+  risk_factors:         string[];
+  safe_factors:         string[];
+  checklist:            string[];
+  recommendations:      string;
+}
+
 interface QuotaInfo {
   plan:        string;
   remaining:   number;
@@ -132,6 +156,15 @@ function AnalysisContent() {
   const [showUpgrade,    setShowUpgrade]    = useState(false);
   const [upgradeReason,  setUpgradeReason]  = useState('');
 
+  // ── 거주 후기 (커뮤니티 연동) ─────────────────────────────
+  const [communityReviews,    setCommunityReviews]    = useState<CommunityReview[]>([]);
+  const [reviewsLoading,      setReviewsLoading]      = useState(false);
+
+  // ── 전세사기 위험도 ─────────────────────────────────────────
+  const [jeonseRisk,     setJeonseRisk]     = useState<JeonseRisk | null>(null);
+  const [jeonseLoading,  setJeonseLoading]  = useState(false);
+  const [jeonseError,    setJeonseError]    = useState('');
+
   const [sessionId] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
     const ex = localStorage.getItem('moveiq_session_id');
@@ -166,6 +199,50 @@ function AnalysisContent() {
     const addr = searchParams.get('address');
     if (addr) runAnalysis(addr);
   }, []);
+
+  // ── 거주 후기 로드 (커뮤니티 이사 후기 카테고리 연동) ────
+  async function loadCommunityReviews(address: string) {
+    // 주소에서 동 이름 추출 (예: "마포구 성산동" → "성산동" or "성산1동")
+    const dongMatch = address.match(/([가-힣]+[동읍면리][\d]?동?)/);
+    const dong = dongMatch ? dongMatch[1] : '';
+    if (!dong) return;
+
+    setReviewsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        category: '이사 후기',
+        dong,
+        sort:  'latest',
+        limit: '10',
+      });
+      const res  = await fetch(`/api/community/posts?${params}`);
+      const json = await res.json();
+      if (json.success) setCommunityReviews(json.data ?? []);
+    } catch {}
+    finally { setReviewsLoading(false); }
+  }
+
+  // ── 전세사기 위험도 분석 ─────────────────────────────────────
+  async function loadJeonseRisk(address: string, analysisResult: any) {
+    // 이미 같은 주소 분석된 경우 스킵
+    if (jeonseRisk && (jeonseRisk as any)._address === address) return;
+    setJeonseLoading(true);
+    setJeonseError('');
+    try {
+      const res  = await fetch('/api/jeonse-risk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, analysis_result: analysisResult }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const risk = json.data as JeonseRisk;
+        setJeonseRisk(risk);
+        (risk as any)._address = address;
+      }
+      else setJeonseError('분석에 실패했습니다. 다시 시도해주세요.');
+    } catch { setJeonseError('네트워크 오류가 발생했습니다.'); }
+    finally { setJeonseLoading(false); }
+  }
 
   async function saveHistory(history: string[]) {
     localStorage.setItem('moveiq_history', JSON.stringify(history));
@@ -339,7 +416,13 @@ function AnalysisContent() {
 
           <div className={styles.tabs}>
             {TABS.map(([t, label]) => (
-              <button key={t} className={`${styles.tab} ${rTab === t ? styles.tabActive : ''}`} onClick={() => setRTab(t)}>{label}</button>
+              <button key={t} className={`${styles.tab} ${rTab === t ? styles.tabActive : ''}`}
+                onClick={() => {
+                  setRTab(t);
+                  if (t === 'review' && result) loadCommunityReviews(result.address);
+                  if (t === 'jeonse' && result) loadJeonseRisk(result.address, result);
+                }}
+              >{label}</button>
             ))}
           </div>
 
@@ -432,57 +515,195 @@ function AnalysisContent() {
           {rTab === 'commerce' && <div className={styles.aiBox}><span>🛍️</span><p>{D.commerce_detail}</p></div>}
           {rTab === 'dev'      && <div className={styles.aiBox}><span>🏗️</span><p>{D.development_detail}</p></div>}
 
+          {/* ══ 거주 후기 탭 — 커뮤니티 이사 후기 연동 ══ */}
           {rTab === 'review' && (
             <div>
-              {D.reviews?.length ? (
+              {reviewsLoading ? (
+                <div className={styles.tabLoading}>
+                  <div className={styles.tabSpinner} />
+                  <p>커뮤니티에서 이사 후기를 불러오는 중...</p>
+                </div>
+              ) : communityReviews.length > 0 ? (
                 <>
-                  {D.reviews.map((r, i) => (
-                    <div key={i} className={styles.reviewItem}>
+                  <div className={styles.reviewMeta}>
+                    <span className={styles.reviewCount}>📝 이사 후기 {communityReviews.length}개</span>
+                    <span className={styles.reviewDong}>{result?.address} 인근</span>
+                  </div>
+                  {communityReviews.map(r => (
+                    <div key={r.id} className={styles.reviewItem}>
                       <div className={styles.reviewHeader}>
-                        <span className={styles.reviewAuthor}>{r.author}</span>
-                        <span className={styles.reviewStars}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
-                        <span className={styles.reviewDate}>{r.date}</span>
+                        <span className={styles.reviewAuthor}>
+                          {r.is_verified && <span className={styles.verifiedMark}>🏠</span>}
+                          {r.nickname}
+                        </span>
+                        <span className={styles.reviewDongTag}>📍 {r.dong}</span>
+                        <span className={styles.reviewDate}>{new Date(r.created_at).toLocaleDateString('ko-KR', { month:'short', day:'numeric' })}</span>
+                        <span className={styles.reviewLikes}>❤️ {r.likes}</span>
                       </div>
-                      <p style={{ fontSize:13, lineHeight:1.75, color:'var(--text2)' }}>{r.text}</p>
+                      <p className={styles.reviewTitle}>{r.title}</p>
+                      <p className={styles.reviewContent}>{r.content}</p>
                     </div>
                   ))}
-                  <Link href="/community" className={styles.btnGoComm}>✏️ 이 동네 후기 남기기</Link>
+                  <div className={styles.reviewActions}>
+                    <Link href={`/community?category=이사 후기`} className={styles.btnGoComm}>
+                      커뮤니티에서 더 보기 →
+                    </Link>
+                    <Link href="/community" className={styles.btnWriteReview}>
+                      ✏️ 후기 작성하기
+                    </Link>
+                  </div>
                 </>
-              ) : (
+              ) : result ? (
+                // 분석 결과 있는데 후기 없음
                 <div className={styles.noData}>
-                  <div style={{ fontSize:36, marginBottom:12 }}>📝</div>
-                  <p>아직 등록된 거주후기가 없습니다.</p>
-                  <Link href="/community" className={styles.btnGoComm}>✏️ 후기 작성하러 가기</Link>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>📝</div>
+                  <p style={{ marginBottom: 8, fontWeight: 600 }}>아직 이 동네 이사 후기가 없어요.</p>
+                  <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
+                    직접 살아본 경험을 커뮤니티에 공유하면<br/>다음 이사자에게 큰 도움이 됩니다.
+                  </p>
+                  <div className={styles.reviewActions}>
+                    <Link href={`/community?category=이사 후기`} className={styles.btnGoComm}>
+                      이사 후기 보러가기 →
+                    </Link>
+                    <Link href="/community" className={styles.btnWriteReview}>
+                      ✏️ 첫 후기 작성하기
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                // 주소 미입력
+                <div className={styles.noData}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🏠</div>
+                  <p>주소를 입력하면 해당 동네 이사 후기를 가져옵니다.</p>
+                  <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
+                    커뮤니티의 '이사 후기' 카테고리와 실시간 연동됩니다.
+                  </p>
                 </div>
               )}
             </div>
           )}
 
+          {/* ══ 전세사기 위험도 탭 ══ */}
           {rTab === 'jeonse' && (
             <div>
-              {D.jeonse_risk ? (
+              {jeonseLoading ? (
+                <div className={styles.tabLoading}>
+                  <div className={styles.tabSpinner} />
+                  <p>AI가 전세사기 위험도를 분석 중입니다...</p>
+                  <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>입지 데이터 + AI 추론 기반 분석</p>
+                </div>
+              ) : jeonseError ? (
+                <div className={styles.noData}>
+                  <p style={{ color: '#e74c3c' }}>{jeonseError}</p>
+                  <button className={styles.btnRetry} onClick={() => result && loadJeonseRisk(result.address, result)}>
+                    다시 시도
+                  </button>
+                </div>
+              ) : jeonseRisk ? (
                 <>
-                  <div className={`${styles.jeonseRiskBadge} ${styles[`jeonseRisk_${D.jeonse_risk.level}` as keyof typeof styles]}`}>
-                    {D.jeonse_risk.level === 'high' ? '🔴 전세사기 위험' : D.jeonse_risk.level === 'medium' ? '🟡 주의 필요' : '🟢 비교적 안전'}
+                  {/* 위험도 배지 */}
+                  <div className={`${styles.jeonseRiskBadge} ${
+                    jeonseRisk.risk_level === 'high'   ? styles.jeonseRisk_high   :
+                    jeonseRisk.risk_level === 'medium' ? styles.jeonseRisk_medium :
+                    styles.jeonseRisk_low
+                  }`}>
+                    <div className={styles.jeonseRiskLeft}>
+                      <div className={styles.jeonseRiskLabel}>
+                        {jeonseRisk.risk_level === 'high' ? '🔴 전세사기 위험 높음' :
+                         jeonseRisk.risk_level === 'medium' ? '🟡 주의 필요' : '🟢 비교적 안전'}
+                      </div>
+                      <div className={styles.jeonseRiskSub}>
+                        전세가율 추정: {jeonseRisk.jeonse_rate_estimate}
+                      </div>
+                    </div>
+                    <div className={styles.jeonseScoreCircle} style={{
+                      background: jeonseRisk.risk_level === 'high' ? '#e74c3c' :
+                                  jeonseRisk.risk_level === 'medium' ? '#e0a84b' : '#27ae60',
+                    }}>
+                      <span className={styles.jeonseScoreNum}>{jeonseRisk.risk_score}</span>
+                      <span className={styles.jeonseScoreLabel}>위험도</span>
+                    </div>
                   </div>
-                  <div className={styles.aiBox} style={{ marginTop:12 }}><span>🤖</span><p>{D.jeonse_risk.reason}</p></div>
+
+                  {/* AI 요약 */}
+                  <div className={styles.aiBox} style={{ marginTop: 14 }}>
+                    <span>🤖</span><p>{jeonseRisk.summary}</p>
+                  </div>
+
+                  {/* 위험/안전 요소 */}
+                  <div className={styles.jeonseFactors}>
+                    <div className={styles.jeonseFactorCol}>
+                      <div className={styles.jeonseFactorTitle} style={{ color: '#c0392b' }}>⚠️ 위험 요소</div>
+                      {jeonseRisk.risk_factors.map((f, i) => (
+                        <div key={i} className={styles.jeonseFactorItem} style={{ background: '#fdecea', borderColor: '#f5c6cb' }}>
+                          <span className={styles.jeonseFactorDot} style={{ background: '#e74c3c' }} />{f}
+                        </div>
+                      ))}
+                    </div>
+                    <div className={styles.jeonseFactorCol}>
+                      <div className={styles.jeonseFactorTitle} style={{ color: '#1e8449' }}>✅ 안전 요소</div>
+                      {jeonseRisk.safe_factors.map((f, i) => (
+                        <div key={i} className={styles.jeonseFactorItem} style={{ background: '#eafaf1', borderColor: '#a9dfbf' }}>
+                          <span className={styles.jeonseFactorDot} style={{ background: '#27ae60' }} />{f}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 계약 전 체크리스트 */}
                   <div className={styles.jeonseChecklist}>
-                    <div className={styles.panelTitle}>✅ 계약 전 필수 체크리스트</div>
-                    {D.jeonse_risk.checklist.map((item, i) => (
-                      <div key={i} className={styles.jeonseCheckItem}><span className={styles.jeonseNum}>{i + 1}</span><span>{item}</span></div>
+                    <div className={styles.panelTitle}>📋 계약 전 필수 체크리스트</div>
+                    {jeonseRisk.checklist.map((item, i) => (
+                      <div key={i} className={styles.jeonseCheckItem}>
+                        <span className={styles.jeonseNum}>{i + 1}</span>
+                        <span>{item}</span>
+                      </div>
                     ))}
+                  </div>
+
+                  {/* AI 추천 코멘트 */}
+                  <div className={styles.aiBox} style={{ marginTop: 16 }}>
+                    <span>💡</span><p>{jeonseRisk.recommendations}</p>
+                  </div>
+
+                  <div className={styles.jeonseDisclaimer}>
+                    ⚠️ AI 분석 결과는 참고용이며, 실제 계약 전 반드시 등기부등본·전세보증보험 가능 여부를 직접 확인하세요.
                   </div>
                 </>
-              ) : (
+              ) : result ? (
+                // 분석 결과 있지만 전세 분석 미실행
                 <div className={styles.noData}>
-                  <div style={{ fontSize:36, marginBottom:12 }}>🏦</div>
-                  <p>주소를 입력하면 전세사기 위험도를 분석합니다.</p>
-                  <div className={styles.jeonseManual}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🏦</div>
+                  <p style={{ marginBottom: 16 }}>
+                    <strong>{result.address}</strong>의<br/>전세사기 위험도를 AI가 분석합니다.
+                  </p>
+                  <button
+                    className={styles.btnAnalyzeJeonse}
+                    onClick={() => loadJeonseRisk(result.address, result)}
+                  >
+                    🔍 전세사기 위험도 분석하기
+                  </button>
+                  <div className={styles.jeonseManual} style={{ marginTop: 20 }}>
                     <div className={styles.panelTitle}>📋 전세계약 기본 체크리스트</div>
-                    {['등기부등본 열람 (계약 당일·잔금 직전 재확인)','전세가율 80% 초과 여부 확인','선순위 채권·근저당 합계 확인','임대인 신원 확인','전세보증보험 가입 가능 여부 확인 (HUG/SGI)','확정일자 즉시 신청 (전입신고 당일)'].map((item, i) => (
-                      <div key={i} className={styles.jeonseCheckItem}><span className={styles.jeonseNum}>{i + 1}</span><span>{item}</span></div>
+                    {[
+                      '등기부등본 열람 (계약 당일·잔금 직전 재확인)',
+                      '전세가율 80% 초과 여부 확인 (깡통전세 위험)',
+                      '선순위 채권·근저당 합계 확인',
+                      '임대인 신원 확인 (신분증·등기부 소유자 일치)',
+                      '전세보증보험 가입 가능 여부 확인 (HUG/SGI)',
+                      '확정일자 즉시 신청 (전입신고 당일)',
+                    ].map((item, i) => (
+                      <div key={i} className={styles.jeonseCheckItem}>
+                        <span className={styles.jeonseNum}>{i + 1}</span>
+                        <span>{item}</span>
+                      </div>
                     ))}
                   </div>
+                </div>
+              ) : (
+                <div className={styles.noData}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🏦</div>
+                  <p>주소를 입력하면 전세사기 위험도를 AI로 분석합니다.</p>
                 </div>
               )}
             </div>
