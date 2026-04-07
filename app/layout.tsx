@@ -57,8 +57,7 @@ export const metadata: Metadata = {
   },
 
   verification: {
-    // Google Search Console 인증 코드는 환경변수로 관리
-    google: <meta name="google-site-verification" content="YyzxirHYgaDQ4HWGPaDuTKkxYYp2xt5TbepQmla4m8c" />,
+    google: 'YyzxirHYgaDQ4HWGPaDuTKkxYYp2xt5TbepQmla4m8c',
   },
 };
 
