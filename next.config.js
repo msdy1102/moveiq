@@ -40,7 +40,7 @@ const nextConfig = {
               // 웹폰트 (jsdelivr Pretendard woff2 포함)
               "font-src 'self' data: https://ssl.pstatic.net https://cdn.jsdelivr.net",
               // 네이버 지도 내부 로깅 + XHR/fetch 전체
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://oapi.map.naver.com https://openapi.map.naver.com https://naveropenapi.apigw.ntruss.com https://map.naver.com https://kr-col-ext.nelo.navercorp.com https://overpass-api.de https://overpass.openstreetmap.ru https://api.resend.com https://api.tosspayments.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://oapi.map.naver.com https://openapi.map.naver.com https://naveropenapi.apigw.ntruss.com https://map.naver.com https://kr-col-ext.nelo.navercorp.com https://cdn.jsdelivr.net https://overpass-api.de https://overpass.openstreetmap.ru https://api.resend.com https://api.tosspayments.com",
               // 네이버 지도 Web Worker
               "worker-src 'self' blob:",
               "frame-src 'none'",
