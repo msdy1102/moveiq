@@ -242,3 +242,79 @@
   -webkit-box-orient: vertical; overflow: hidden;
 }
 .feedbackDate { font-size: 11px; color: var(--muted, #7a8570); }
+
+/* ── 구독 플랜 섹션 ───────────────────────────────────── */
+.planSection {
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid #f0f0f0;
+}
+.planTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 16px;
+}
+.planLoading { font-size: 13px; color: #aaa; }
+.planLoadErr { font-size: 13px; color: #e74c3c; }
+
+.planBadgeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.planBadge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.planBadge_free     { background: #f5f5f5; color: #666; }
+.planBadge_one_time { background: #e8f0fe; color: #1a56db; }
+.planBadge_premium  { background: linear-gradient(90deg, #646F4B, #4a5236); color: #fff; }
+.planExpiry { font-size: 12px; color: #aaa; }
+
+/* 남은 횟수 카드 */
+.quotaCard {
+  background: #f8faf6;
+  border: 1px solid #e8ebe3;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.quotaLabel { font-size: 11px; color: #7a8570; font-weight: 600; margin-bottom: 8px; }
+.quotaRow   { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.quotaCount { font-size: 22px; font-weight: 800; color: #1a1e15; }
+.quotaPeriod{ font-size: 12px; color: #aaa; }
+.quotaBar   { height: 6px; background: #e8ebe3; border-radius: 100px; overflow: hidden; }
+.quotaFill  { height: 100%; background: linear-gradient(90deg, #646F4B, #a3b899); border-radius: 100px; transition: width .4s ease; }
+
+/* 혜택 목록 */
+.planBenefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.benefitOk  { font-size: 13px; color: #3d4535; }
+.benefitOff { font-size: 13px; color: #bbb; }
+
+/* 업그레이드 버튼 */
+.upgradeBtn {
+  width: 100%;
+  padding: 13px 20px;
+  background: #1a1e15;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .2s;
+}
+.upgradeBtn:hover { background: #646F4B; }

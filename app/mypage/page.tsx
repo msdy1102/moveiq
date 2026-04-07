@@ -43,6 +43,16 @@ function MypageContent() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg,    setProfileMsg]    = useState('');
 
+  // ── 구독 플랜 ────────────────────────────────────────────
+  type PlanType = 'free' | 'one_time' | 'premium';
+  const [planInfo, setPlanInfo] = useState<{
+    plan:          PlanType;
+    remaining:     number;
+    daily_limit:   number;
+    expires_at:    string | null;
+  } | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+
   // ── 분석 히스토리 (DB) ──────────────────────────────────
   const [historyItems,   setHistoryItems]   = useState<HistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -74,6 +84,25 @@ function MypageContent() {
   useEffect(() => {
     if (!user || !sessionId) return;
     setNickname(user.nickname ?? '');
+
+    // 구독 플랜 정보 로드
+    setPlanLoading(true);
+    fetch(`/api/profile?user_id=${encodeURIComponent(user.id)}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          const planMap: Record<string, number> = { free: 3, one_time: 1, premium: 999 };
+          const planKey = (json.plan ?? 'free') as 'free' | 'one_time' | 'premium';
+          setPlanInfo({
+            plan:        planKey,
+            remaining:   json.remaining ?? planMap[planKey] ?? 3,
+            daily_limit: json.daily_limit ?? planMap[planKey] ?? 3,
+            expires_at:  json.plan_expires_at ?? null,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setPlanLoading(false));
 
     // 소음 알림 목록 (localStorage + DB 동기화)
     fetch(`/api/user-preferences?session_id=${encodeURIComponent(sessionId)}`)
@@ -249,6 +278,87 @@ function MypageContent() {
                   {profileSaving ? '저장 중...' : '저장'}
                 </button>
               </form>
+
+              {/* ── 구독 플랜 ─────────────────────────── */}
+              <div className={styles.planSection}>
+                <h3 className={styles.planTitle}>구독 플랜</h3>
+                {planLoading ? (
+                  <div className={styles.planLoading}>플랜 정보 로딩 중...</div>
+                ) : planInfo ? (
+                  <>
+                    {/* 플랜 뱃지 */}
+                    <div className={styles.planBadgeRow}>
+                      <span className={`${styles.planBadge} ${styles[`planBadge_${planInfo.plan}`]}`}>
+                        {planInfo.plan === 'free'     && '무료 플랜'}
+                        {planInfo.plan === 'one_time' && '이사 한 번 플랜'}
+                        {planInfo.plan === 'premium'  && '⭐ 프리미엄'}
+                      </span>
+                      {planInfo.expires_at && (
+                        <span className={styles.planExpiry}>
+                          만료: {new Date(planInfo.expires_at).toLocaleDateString('ko-KR')}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 남은 분석 횟수 */}
+                    <div className={styles.quotaCard}>
+                      <div className={styles.quotaLabel}>남은 분석 횟수</div>
+                      <div className={styles.quotaRow}>
+                        <span className={styles.quotaCount}>
+                          {planInfo.plan === 'premium'
+                            ? '무제한'
+                            : `${planInfo.remaining} / ${planInfo.daily_limit}회`}
+                        </span>
+                        <span className={styles.quotaPeriod}>
+                          {planInfo.plan === 'premium' ? '프리미엄 혜택' : '오늘 기준'}
+                        </span>
+                      </div>
+                      {planInfo.plan !== 'premium' && (
+                        <div className={styles.quotaBar}>
+                          <div
+                            className={styles.quotaFill}
+                            style={{ width: `${Math.min((planInfo.remaining / planInfo.daily_limit) * 100, 100)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 플랜별 혜택 요약 */}
+                    <ul className={styles.planBenefits}>
+                      {planInfo.plan === 'free' && (<>
+                        <li className={styles.benefitOk}>✓ 소음 지도 무제한 열람·제보</li>
+                        <li className={styles.benefitOk}>✓ AI 입지 분석 하루 3회</li>
+                        <li className={styles.benefitOff}>✗ PDF 리포트 저장</li>
+                        <li className={styles.benefitOff}>✗ 주간 소음 리포트 이메일</li>
+                      </>)}
+                      {planInfo.plan === 'one_time' && (<>
+                        <li className={styles.benefitOk}>✓ 소음 지도 무제한 열람·제보</li>
+                        <li className={styles.benefitOk}>✓ 특정 주소 풀 리포트</li>
+                        <li className={styles.benefitOk}>✓ PDF 다운로드 + 비교 3개</li>
+                        <li className={styles.benefitOff}>✗ 주간 소음 리포트 이메일</li>
+                      </>)}
+                      {planInfo.plan === 'premium' && (<>
+                        <li className={styles.benefitOk}>✓ 무제한 분석·비교</li>
+                        <li className={styles.benefitOk}>✓ 실시간 알림</li>
+                        <li className={styles.benefitOk}>✓ 히스토리 30개 저장</li>
+                        <li className={styles.benefitOk}>✓ 주간 소음 리포트 이메일</li>
+                      </>)}
+                    </ul>
+
+                    {/* 업그레이드 버튼 */}
+                    {planInfo.plan !== 'premium' && (
+                      <button
+                        className={styles.upgradeBtn}
+                        onClick={() => alert('결제 기능은 준비 중입니다.')}
+                      >
+                        {planInfo.plan === 'free' ? '프리미엄으로 업그레이드 →' : '월정액으로 업그레이드 →'}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <p className={styles.planLoadErr}>플랜 정보를 불러오지 못했습니다.</p>
+                )}
+              </div>
             </div>
           )}
 

@@ -188,6 +188,10 @@ export default function NoiseMapPage() {
   const [reportOk, setReportOk]     = useState(false);
   const [reportLat, setReportLat]   = useState<number | null>(null);
   const [reportLng, setReportLng]   = useState<number | null>(null);
+  // 사진 첨부 상태
+  const [photoFile,    setPhotoFile]    = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError,   setPhotoError]   = useState<string>('');
   // 소음 알림 기능
   const [watchedAddresses, setWatchedAddresses]   = useState<{ address: string; lat: number; lng: number }[]>([]);
   const [notifPermission, setNotifPermission]     = useState<NotificationPermission>('default');
@@ -296,19 +300,59 @@ export default function NoiseMapPage() {
     finally { setLocLoading(false); }
   }
 
+  // 사진 선택 핸들러
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    setPhotoError('');
+    if (!file) { setPhotoFile(null); setPhotoPreview(null); return; }
+    // MIME 검증
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setPhotoError('JPEG, PNG 파일만 첨부 가능합니다.'); return;
+    }
+    // 크기 검증 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('파일 크기는 5MB 이하여야 합니다.'); return;
+    }
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
   async function submitReport(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
     try {
       const sLat = reportLat ?? userLat ?? 37.5665;
       const sLng = reportLng ?? userLng ?? 126.9780;
-      const res = await fetch('/api/noise-reports', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noise_type: d.get('noise_type'), time_slot: d.get('time_slot'), severity: Number(d.get('severity')), lat: sLat, lng: sLng, description: d.get('description') }),
-      });
+
+      // 사진이 있으면 multipart/form-data, 없으면 JSON
+      let res: Response;
+      if (photoFile) {
+        const fd = new FormData();
+        fd.append('noise_type',  String(d.get('noise_type')));
+        fd.append('time_slot',   String(d.get('time_slot')));
+        fd.append('severity',    String(d.get('severity')));
+        fd.append('lat',         String(sLat));
+        fd.append('lng',         String(sLng));
+        fd.append('description', String(d.get('description') ?? ''));
+        fd.append('photo',       photoFile);
+        res = await fetch('/api/noise-reports', { method: 'POST', body: fd });
+      } else {
+        res = await fetch('/api/noise-reports', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ noise_type: d.get('noise_type'), time_slot: d.get('time_slot'), severity: Number(d.get('severity')), lat: sLat, lng: sLng, description: d.get('description') }),
+        });
+      }
+
       const json = await res.json();
-      if (json.success) { setReportOk(true); setPinReloadKey(k => k + 1); loadNoiseStats(sLat, sLng); }
-      else alert(json.message);
+      if (json.success) {
+        setReportOk(true);
+        setPinReloadKey(k => k + 1);
+        loadNoiseStats(sLat, sLng);
+        // 초기화
+        setPhotoFile(null); setPhotoPreview(null); setPhotoError('');
+      } else alert(json.message);
     } catch { alert('제보 저장에 실패했습니다.'); }
   }
 
@@ -528,6 +572,31 @@ export default function NoiseMapPage() {
                   </div>
                   <div className={styles.formGroup}><label>상세 설명 (선택)</label>
                     <textarea name="description" className={styles.formInput} rows={3} maxLength={100} placeholder="소음 상황을 간단히 설명해주세요" />
+                  </div>
+                  {/* 사진 첨부 */}
+                  <div className={styles.formGroup}>
+                    <label>사진 첨부 (선택)</label>
+                    <label className={styles.photoLabel} htmlFor="noise-photo-input">
+                      {photoPreview
+                        ? <img src={photoPreview} alt="첨부 미리보기" className={styles.photoPreview} />
+                        : <span className={styles.photoPlaceholder}>📷 사진 추가 (JPEG/PNG, 최대 5MB)</span>
+                      }
+                    </label>
+                    <input
+                      id="noise-photo-input"
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      onChange={handlePhotoSelect}
+                      style={{ position: 'fixed', top: '-9999px', left: '-9999px' }}
+                    />
+                    {photoError && <p className={styles.photoError}>{photoError}</p>}
+                    {photoPreview && (
+                      <button
+                        type="button"
+                        className={styles.photoRemove}
+                        onClick={() => { setPhotoFile(null); setPhotoPreview(null); setPhotoError(''); }}
+                      >✕ 사진 제거</button>
+                    )}
                   </div>
                   <button type="submit" className={styles.btnSubmit}>제보 완료</button>
                 </form>
