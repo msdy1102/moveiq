@@ -31,11 +31,18 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' https://oapi.map.naver.com https://ssl.pstatic.net https://developers.kakao.com 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.supabase.co https://ssl.pstatic.net https://*.map.naver.net https://map.pstatic.net",
-              "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co https://oapi.map.naver.com https://naveropenapi.apigw.ntruss.com https://overpass-api.de https://overpass.openstreetmap.ru https://api.resend.com",
+              // 네이버 지도 SDK + 히트맵 등 submodule + 카카오 SDK
+              "script-src 'self' https://oapi.map.naver.com https://openapi.map.naver.com https://ssl.pstatic.net https://nid.naver.com https://developers.kakao.com https://t1.kakaocdn.net 'unsafe-inline' 'unsafe-eval'",
+              // CSS-in-JS 인라인 스타일 허용
+              "style-src 'self' 'unsafe-inline' https://ssl.pstatic.net",
+              // 네이버 지도 타일 + 마커 이미지 + Supabase Storage
+              "img-src 'self' data: blob: https://*.supabase.co https://ssl.pstatic.net https://*.map.naver.net https://map.pstatic.net https://ldb.pstatic.net https://naver-map.pstatic.net https://t1.kakaocdn.net",
+              // 웹폰트
+              "font-src 'self' data: https://ssl.pstatic.net",
+              // XHR/fetch — 네이버 지도 API + OSM + Supabase + Resend
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://oapi.map.naver.com https://openapi.map.naver.com https://naveropenapi.apigw.ntruss.com https://map.naver.com https://overpass-api.de https://overpass.openstreetmap.ru https://api.resend.com https://api.tosspayments.com",
+              // 네이버 지도가 Worker 사용
+              "worker-src 'self' blob:",
               "frame-src 'none'",
               "object-src 'none'",
               "base-uri 'self'",
