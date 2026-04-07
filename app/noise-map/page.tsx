@@ -81,7 +81,7 @@ function NaverMap({ lat, lng, loading, onCenterChange, onMapClick, activeFilters
     }
     const s = document.createElement('script');
     s.id = 'naver-sdk';
-    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${key}&submodules=visualization`;
+    s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${key}&submodules=visualization`;
     s.onload = initMap;
     document.head.appendChild(s);
   }, [lat, lng, loading, pinReloadKey]);
