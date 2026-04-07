@@ -8,7 +8,7 @@ import { createServiceClient } from '@/lib/supabase';
 // 댓글 작성
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 5 * 60 * 1000, max: 10 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 5 * 60 * 1000, max: 10, key: 'community-comments-write' })) return apiError('RATE_LIMITED', 429);
 
   let body: { post_id?: string; session_id?: string; user_id?: string; nickname?: string; content?: string };
   try { body = await req.json(); } catch { return apiError('INVALID_INPUT', 400); }
@@ -19,6 +19,14 @@ export async function POST(req: NextRequest) {
   if (!session_id)  return apiError('SESSION_REQUIRED', 400);
   if (!content?.trim() || content.trim().length < 1 || content.trim().length > 1000)
     return NextResponse.json({ success: false, message: '댓글은 1~1000자 사이로 입력해주세요.' }, { status: 400 });
+
+  // HTML 이스케이프 (XSS 방지)
+  function escapeHtml(str: string): string {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+              .replace(/"/g,'&quot;').replace(/'/g,'&#x27;').replace(/\//g,'&#x2F;');
+  }
+  const safeContent = escapeHtml(content.trim());
+  const safeNick    = escapeHtml(nickname?.trim() || '익명');
 
   try {
     const sb = createServiceClient();
@@ -34,8 +42,8 @@ export async function POST(req: NextRequest) {
         post_id,
         session_id,
         user_id:  user_id ?? null,
-        nickname: nickname?.trim() || '익명',
-        content:  content.trim(),
+        nickname: safeNick,
+        content:  safeContent,
         ip,
       })
       .select('id, nickname, content, likes, is_verified, created_at')
@@ -58,7 +66,7 @@ export async function POST(req: NextRequest) {
 // 댓글 삭제
 export async function DELETE(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 20 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 20, key: 'community-comments-delete' })) return apiError('RATE_LIMITED', 429);
 
   const { comment_id, session_id } = await req.json().catch(() => ({}));
   if (!comment_id || !session_id) return apiError('INVALID_INPUT', 400);

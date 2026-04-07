@@ -3,8 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { apiError } from '@/lib/error-handler';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+  // 계정 탈퇴: IP당 시간당 3건 제한
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
+  if (!rateLimit(ip, { windowMs: 60 * 60 * 1000, max: 3, key: 'delete-account' })) {
+    return apiError('RATE_LIMITED', 429);
+  }
+
   const authHeader = req.headers.get('authorization');
   const token = authHeader?.replace('Bearer ', '');
   if (!token) return apiError('UNAUTHORIZED', 401);

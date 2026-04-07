@@ -32,7 +32,7 @@ function isValidImageBuffer(buf: Buffer, mimeType: string): boolean {
 export async function POST(req: NextRequest) {
   // Rate Limit
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 5 })) {
+  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 5, key: 'noise-reports' })) {
     return apiError('RATE_LIMITED', 429);
   }
 

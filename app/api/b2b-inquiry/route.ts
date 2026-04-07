@@ -16,6 +16,15 @@ const RESEND_API_KEY  = process.env.RESEND_API_KEY ?? '';
 const ADMIN_EMAIL     = 'zntk660202@gmail.com';
 const FROM_EMAIL      = 'noreply@moveiq.vercel.app';
 
+// RFC 5321 기반 이메일 검증 (길이 + 형식 + 연속 점 방지)
+function isValidEmail(email: string): boolean {
+  if (email.length > 254) return false;
+  const re = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  if (!re.test(email)) return false;
+  if (/\.{2,}/.test(email)) return false;  // 연속 점 차단
+  return true;
+}
+
 const SERVICE_TYPES = [
   'api_integration', 'white_label', 'data_partnership',
   'government', 'media', 'other',
@@ -24,7 +33,7 @@ const SERVICE_TYPES = [
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
   // 시간당 3건 제한 (어뷰징 방지)
-  if (!rateLimit(ip, { windowMs: 60 * 60 * 1000, max: 3 })) {
+  if (!rateLimit(ip, { windowMs: 60 * 60 * 1000, max: 3, key: 'b2b-inquiry' })) {
     return apiError('RATE_LIMITED', 429);
   }
 
@@ -45,7 +54,7 @@ export async function POST(req: NextRequest) {
   if (!service_type  || !SERVICE_TYPES.includes(service_type as any))                     return apiError('INVALID_INPUT', 400);
   if (!contact_name  || contact_name.trim().length < 1   || contact_name.length  > 50)  return apiError('INVALID_INPUT', 400);
   if (!contact_phone || contact_phone.trim().length < 8   || contact_phone.length > 20)  return apiError('INVALID_INPUT', 400);
-  if (!contact_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact_email))               return apiError('INVALID_INPUT', 400);
+  if (!contact_email || !isValidEmail(contact_email))               return apiError('INVALID_INPUT', 400);
   if (!message       || message.trim().length < 10        || message.length > 2000)       return apiError('INVALID_INPUT', 400);
 
   const SERVICE_LABELS: Record<string, string> = {

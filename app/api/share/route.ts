@@ -17,7 +17,7 @@ const SHARE_TTL_DAYS = 30;
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
   // 공유 생성: IP당 분당 10회 제한
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 10 })) {
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 10, key: 'share' })) {
     return apiError('RATE_LIMITED', 429);
   }
 
@@ -28,6 +28,18 @@ export async function POST(req: NextRequest) {
   if (!body.address || !body.result) return apiError('INVALID_INPUT', 400);
   if (typeof body.address !== 'string' || body.address.length > 200) return apiError('INVALID_INPUT', 400);
 
+  // result 크기 제한 (50KB) — 대용량 페이로드 저장 방지
+  const resultStr = JSON.stringify(body.result);
+  if (resultStr.length > 50_000) return apiError('INVALID_INPUT', 400);
+
+  // 허용 필드만 저장 (알 수 없는 필드 제거)
+  const ALLOWED_KEYS = ['address','scores','total','grade','ai_comment',
+    'traffic_detail','infra_detail','school_detail','noise_detail',
+    'commerce_detail','development_detail','alternatives','noise_times'];
+  const sanitizedResult = Object.fromEntries(
+    Object.entries(body.result).filter(([k]) => ALLOWED_KEYS.includes(k))
+  );
+
   // 토큰 생성 (crypto.randomUUID)
   const token     = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   const expiresAt = new Date(Date.now() + SHARE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -37,7 +49,7 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase.from('shared_reports').insert({
       token,
       address:    body.address,
-      result:     body.result,
+      result:     sanitizedResult,
       expires_at: expiresAt,
       created_ip: ip,
     });

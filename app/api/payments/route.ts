@@ -1,7 +1,7 @@
-// app/api/payments/route.ts — v5
-// 결제 완료 후 profiles.plan 업그레이드 추가
+// app/api/payments/route.ts — v6 (보안: Rate Limit 추가)
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
+import { rateLimit } from '@/lib/rate-limit';
 import { apiError } from '@/lib/error-handler';
 import { createServiceClient } from '@/lib/supabase';
 
@@ -18,6 +18,12 @@ const PLAN_CONFIG: Record<string, {
 };
 
 export async function POST(req: NextRequest) {
+  // 결제 엔드포인트: IP당 5분에 3건 (브루트포스 방지)
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
+  if (!rateLimit(ip, { windowMs: 5 * 60 * 1000, max: 3, key: 'payments' })) {
+    return apiError('RATE_LIMITED', 429);
+  }
+
   let body: {
     paymentKey?: string;
     orderId?:    string;

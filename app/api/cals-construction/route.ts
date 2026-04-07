@@ -46,7 +46,7 @@ function getCoords(e: any): { lat: number; lng: number } | null {
 
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 30 })) {
+  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 30, key: 'cals-construction' })) {
     return apiError('RATE_LIMITED', 429);
   }
 

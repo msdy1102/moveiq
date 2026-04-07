@@ -8,7 +8,7 @@ import { createServiceClient } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 60 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 60, key: 'user-preferences' })) return apiError('RATE_LIMITED', 429);
 
   const sessionId = req.nextUrl.searchParams.get('session_id');
   if (!sessionId) return apiError('SESSION_REQUIRED', 400);
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 60 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 60, key: 'user-preferences' })) return apiError('RATE_LIMITED', 429);
 
   let body: {
     session_id?:       string;

@@ -10,7 +10,7 @@ import { apiError } from '@/lib/error-handler';
 export async function GET(req: NextRequest) {
   // Rate Limit: IP당 10분에 30건 (클릭마다 호출되므로 기존 20→30으로 상향)
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 30 })) {
+  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 30, key: 'geocode' })) {
     return apiError('RATE_LIMITED', 429);
   }
 

@@ -233,7 +233,7 @@ async function verifyByContract(
 // ── POST: 인증 요청 ──────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 60 * 1000, max: 5 })) {
+  if (!rateLimit(ip, { windowMs: 60 * 60 * 1000, max: 5, key: 'resident-verify' })) {
     return NextResponse.json({ success: false, message: '인증 시도 횟수를 초과했습니다. 1시간 후 다시 시도해주세요.' }, { status: 429 });
   }
 
@@ -309,7 +309,7 @@ export async function POST(req: NextRequest) {
 // ── GET: 인증 상태 조회 ──────────────────────────────────────
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 30 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 30, key: 'resident-verify' })) return apiError('RATE_LIMITED', 429);
 
   const sessionId = req.nextUrl.searchParams.get('session_id');
   const userId    = req.nextUrl.searchParams.get('user_id');

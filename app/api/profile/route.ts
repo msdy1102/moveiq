@@ -7,7 +7,7 @@ import { createServiceClient } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 60 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 60, key: 'profile' })) return apiError('RATE_LIMITED', 429);
 
   const userId = req.nextUrl.searchParams.get('user_id');
   if (!userId) return apiError('INVALID_INPUT', 400);

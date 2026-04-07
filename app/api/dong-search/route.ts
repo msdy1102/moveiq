@@ -23,7 +23,7 @@ function makeLabel(sido: string, gu: string, dong: string): string {
 
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 60 })) {
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 60, key: 'dong-search' })) {
     return NextResponse.json({ success: false, message: '요청이 너무 많습니다.' }, { status: 429 });
   }
 

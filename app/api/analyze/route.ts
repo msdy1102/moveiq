@@ -1,8 +1,9 @@
-// app/api/analyze/route.ts — v5
+// app/api/analyze/route.ts — v6
 // 구독 상태 기반 기능 잠금 구현
 // - Free: 월 3회 / 일 3회 (daily_count)
 // - one_time: 1회 (analysis_count 차감)
 // - premium: 무제한
+// [보안 v6] user_id 클라이언트 신뢰 제거 → Authorization 헤더로 서버 검증
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { rateLimit } from '@/lib/rate-limit';
@@ -130,19 +131,36 @@ function getAnthropic() {
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 10 })) {
+  // key로 엔드포인트 격리 — 다른 라우트 카운트와 분리
+  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 10, key: 'analyze' })) {
     return apiError('RATE_LIMITED', 429);
   }
 
-  let body: { address?: string; session_id?: string; user_id?: string };
+  let body: { address?: string; session_id?: string };
   try { body = await req.json(); } catch { return apiError('INVALID_INPUT', 400); }
 
   const address    = body.address?.trim();
   const session_id = body.session_id?.trim() ?? null;
-  const user_id    = body.user_id?.trim()    ?? null;   // 클라이언트에서 Supabase auth UID 전달
 
   if (!address || address.length < 2 || address.length > 100) {
     return apiError('ADDRESS_REQUIRED', 400);
+  }
+
+  // ── user_id: 클라이언트 body 값 신뢰 금지 → Authorization 헤더로 서버 검증 ──
+  // 클라이언트는 Supabase 세션 토큰을 Authorization: Bearer <token> 으로 전달
+  let user_id: string | null = null;
+  const authHeader = req.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const userClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      );
+      const { data: { user }, error } = await userClient.auth.getUser(token);
+      if (!error && user) user_id = user.id;
+    } catch { /* 토큰 검증 실패 → 비로그인으로 처리 */ }
   }
 
   try {
@@ -231,7 +249,7 @@ export async function POST(req: NextRequest) {
 // ── 히스토리 조회 ─────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 30 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 30, key: 'analyze-get' })) return apiError('RATE_LIMITED', 429);
 
   const sessionId = req.nextUrl.searchParams.get('session_id');
   if (!sessionId) return apiError('SESSION_REQUIRED', 400);

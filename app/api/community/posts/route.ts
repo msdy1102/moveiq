@@ -11,13 +11,15 @@ const SORT_OPTIONS     = ['latest','likes','verified'] as const;
 // ── GET: 게시글 목록 ────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 120 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 60 * 1000, max: 120, key: 'community-posts-get' })) return apiError('RATE_LIMITED', 429);
 
   const params     = req.nextUrl.searchParams;
   const dong       = params.get('dong')     ?? '전체';
   const category   = params.get('category') ?? '';
   const sort       = (params.get('sort') ?? 'latest') as typeof SORT_OPTIONS[number];
-  const search     = params.get('search')   ?? '';
+  // search: 길이 제한 (DB 부하 방지)
+  const rawSearch  = params.get('search') ?? '';
+  const search     = rawSearch.slice(0, 50);
   const page       = Math.max(1, parseInt(params.get('page') ?? '1'));
   const limit      = Math.min(20, parseInt(params.get('limit') ?? '20'));
   const session_id = params.get('session_id') ?? '';
@@ -69,7 +71,7 @@ export async function GET(req: NextRequest) {
 // ── POST: 게시글 작성 ────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
-  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 5 })) return apiError('RATE_LIMITED', 429);
+  if (!rateLimit(ip, { windowMs: 10 * 60 * 1000, max: 5, key: 'community-posts-write' })) return apiError('RATE_LIMITED', 429);
 
   let body: {
     session_id?: string; user_id?: string; nickname?: string;
@@ -88,11 +90,30 @@ export async function POST(req: NextRequest) {
   if (!VALID_CATEGORIES.includes(category ?? ''))
     return NextResponse.json({ success: false, message: '유효하지 않은 카테고리입니다.' }, { status: 400 });
 
-  // 욕설 필터 (기본)
-  const BLOCKED = ['욕설1','욕설2']; // 실제 서비스에서 확장
-  const combined = (title + content).toLowerCase();
-  if (BLOCKED.some(w => combined.includes(w)))
+  // HTML 태그 완전 이스케이프 (XSS 방지)
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
+  }
+
+  const safeTitle   = escapeHtml(title.trim());
+  const safeContent = escapeHtml(content.trim());
+  const safeNick    = escapeHtml(nickname?.trim() || '익명');
+
+  // 기본 욕설/스팸 필터 (향후 확장 용이하도록 배열로 관리)
+  const BLOCKED_PATTERNS = [
+    /시발|씨발|씨ㅂ|ㅅㅂ|존나|좆|보지|자지|섹스|fuck|shit|bitch/i,
+    /http[s]?:\/\//i, // URL 삽입 시도 (스팸 방지)
+  ];
+  const combined = safeTitle + safeContent;
+  if (BLOCKED_PATTERNS.some(p => p.test(combined))) {
     return NextResponse.json({ success: false, message: '부적절한 내용이 포함되어 있습니다.' }, { status: 400 });
+  }
 
   try {
     const sb = createServiceClient();
@@ -101,11 +122,11 @@ export async function POST(req: NextRequest) {
       .insert({
         session_id,
         user_id:    user_id ?? null,
-        nickname:   nickname?.trim() || '익명',
+        nickname:   safeNick,
         dong:       dong?.trim() || '전체',
         category:   category!,
-        title:      title.trim(),
-        content:    content.trim(),
+        title:      safeTitle,
+        content:    safeContent,
         ip,
       })
       .select('id, title, dong, category, created_at')
