@@ -25,7 +25,7 @@ const NOTICES = [
     badge: '오픈',
     date: '2025.03.01',
     title: '무브IQ 베타 서비스 오픈 안내',
-    content: `안녕하세요, 무브IQ팀입니다.\n\n소음 크라우드 지도 × AI 입지 분석 플랫폼 무브IQ가 베타 서비스를 시작합니다.\n\n▶ 베타 기간 중 무료 제공\n• 소음 지도 열람 및 제보 무제한\n• AI 입지 분석 일 3회\n• 6개 레이어 기본 분석\n• 동네 커뮤니티 이용\n\n▶ 순차 오픈 예정\n• PDF 리포트 저장\n• 실시간 알림 고급 기능\n• 유료 요금제 (이사 한 번 플랜 / 월정액)\n\n서비스 이용 중 불편사항이나 개선 의견은 admin@moveiq.co.kr로 보내주세요.\n\n감사합니다. 무브IQ팀 드림`,
+    content: `안녕하세요, 무브IQ팀입니다.\n\n소음 크라우드 지도 × AI 입지 분석 플랫폼 무브IQ가 베타 서비스를 시작합니다.\n\n▶ 베타 기간 중 무료 제공\n• 소음 지도 열람 및 제보 무제한\n• AI 입지 분석 일 3회\n• 6개 레이어 기본 분석\n• 동네 커뮤니티 이용\n\n▶ 순차 오픈 예정\n• PDF 리포트 저장\n• 실시간 알림 고급 기능\n• 유료 요금제 (이사 한 번 플랜 / 월정액)\n\n서비스 이용 중 불편사항이나 개선 의견은 zntk660202@gmail.com로 보내주세요.\n\n감사합니다. 무브IQ팀 드림`,
     important: false,
   },
 ];
@@ -60,7 +60,7 @@ export default function NoticePage() {
         </div>
 
         <div className={styles.docFooter}>
-          <p>추가 문의: <a href="mailto:admin@moveiq.co.kr">admin@moveiq.co.kr</a></p>
+          <p>추가 문의: <a href="mailto:zntk660202@gmail.com">zntk660202@gmail.com</a></p>
         </div>
       </div>
     </main>

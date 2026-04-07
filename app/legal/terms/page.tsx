@@ -75,7 +75,7 @@ export default function TermsPage() {
 
         <div className={styles.docFooter}>
           <p>본 약관은 2026년 4월 1일부터 적용됩니다.</p>
-          <p>문의: <a href="mailto:admin@moveiq.co.kr">admin@moveiq.co.kr</a></p>
+          <p>문의: <a href="mailto:zntk660202@gmail.com">zntk660202@gmail.com</a></p>
         </div>
       </div>
     </main>

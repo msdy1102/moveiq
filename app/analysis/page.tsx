@@ -174,6 +174,11 @@ function AnalysisContent() {
     return id;
   });
 
+  // 공유 링크
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareUrl,     setShareUrl]     = useState('');
+  const [shareCopied,  setShareCopied]  = useState(false);
+
   // 플랜 정보 로드
   useEffect(() => {
     if (!user?.id) return;
@@ -199,6 +204,52 @@ function AnalysisContent() {
     const addr = searchParams.get('address');
     if (addr) runAnalysis(addr);
   }, []);
+
+  // ── 공유 링크 생성 ────────────────────────────────────────
+  async function createShareLink() {
+    if (!result) return;
+    setShareLoading(true);
+    try {
+      const res  = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: result.address, result }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setShareUrl(json.share_url);
+        // 클립보드 복사
+        await navigator.clipboard.writeText(json.share_url);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 3000);
+      } else {
+        alert('공유 링크 생성에 실패했습니다.');
+      }
+    } catch {
+      alert('공유 링크 생성에 실패했습니다.');
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
+  // ── 카카오 링크 공유 ──────────────────────────────────────
+  function shareKakao(url: string) {
+    // 카카오 SDK 미연동 시 URL 복사로 폴백
+    if (typeof window !== 'undefined' && (window as any).Kakao?.Link) {
+      (window as any).Kakao.Link.sendDefault({
+        objectType: 'feed',
+        content: {
+          title:       `${result?.address} 입지 분석 결과`,
+          description: `종합 점수 ${result?.total}점 (${result?.grade}등급) — 무브IQ AI 분석`,
+          imageUrl:    `https://moveiq.vercel.app/api/og?dong=${encodeURIComponent(result?.address ?? '')}`,
+          link:        { mobileWebUrl: url, webUrl: url },
+        },
+      });
+    } else {
+      navigator.clipboard.writeText(url);
+      alert('링크가 복사되었습니다. 카카오톡에 붙여넣기 해주세요.');
+    }
+  }
 
   // ── 거주 후기 로드 (커뮤니티 이사 후기 카테고리 연동) ────
   async function loadCommunityReviews(address: string) {
@@ -468,6 +519,40 @@ function AnalysisContent() {
                     onClick={() => { setUpgradeReason('PDF 저장은 이사 한 번 플랜 이상에서 이용 가능합니다.'); setShowUpgrade(true); }}
                   >
                     🔒 PDF 저장 (잠금)
+                  </button>
+                )}
+              </div>
+
+              {/* 공유 버튼 */}
+              <div className={styles.shareCta}>
+                {shareUrl ? (
+                  <div className={styles.shareResult}>
+                    <input
+                      readOnly
+                      value={shareUrl}
+                      className={styles.shareInput}
+                      onClick={e => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      className={styles.shareBtn}
+                      onClick={() => { navigator.clipboard.writeText(shareUrl); setShareCopied(true); setTimeout(() => setShareCopied(false), 3000); }}
+                    >
+                      {shareCopied ? '✅ 복사됨' : '🔗 링크 복사'}
+                    </button>
+                    <button
+                      className={styles.shareBtnKakao}
+                      onClick={() => shareKakao(shareUrl)}
+                    >
+                      💬 카카오 공유
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className={styles.shareGenBtn}
+                    onClick={createShareLink}
+                    disabled={shareLoading || !result}
+                  >
+                    {shareLoading ? '링크 생성 중...' : '🔗 이 분석 결과 공유하기'}
                   </button>
                 )}
               </div>

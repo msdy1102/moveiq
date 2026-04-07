@@ -749,6 +749,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ══ B2B 문의 섹션 ══ */}
+      <B2BInquirySection />
+
       {/* ══ FOOTER ══ */}
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
@@ -773,7 +776,7 @@ export default function LandingPage() {
               <div className={styles.footerCol}>
                 <div className={styles.footerColTitle}>고객지원</div>
                 <Link href="/legal/notice"  className={styles.footerLink}>공지사항</Link>
-                <a href="mailto:admin@moveiq.co.kr" className={styles.footerLink}>문의하기</a>
+                <a href="mailto:zntk660202@gmail.com" className={styles.footerLink}>문의하기</a>
               </div>
               <div className={styles.footerCol}>
                 <div className={styles.footerColTitle}>법적 고지</div>
@@ -821,7 +824,7 @@ function FeedbackBox() {
       // fallback: mailto 열기
       const subject = encodeURIComponent(`[무브IQ 불편사항] ${type}`);
       const body    = encodeURIComponent(`유형: ${type}\n\n내용:\n${text}\n\n${email ? `연락처: ${email}` : ''}`);
-      window.open(`mailto:admin@moveiq.co.kr?subject=${subject}&body=${body}`);
+      window.open(`mailto:zntk660202@gmail.com?subject=${subject}&body=${body}`);
       setSent(true);
     } finally {
       setLoading(false);
@@ -929,7 +932,7 @@ function FeedbackBox() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
               <span style={{ fontSize: 11, color: '#a4ad98' }}>
-                또는 <a href="mailto:admin@moveiq.co.kr" style={{ color: '#646F4B', fontWeight: 600 }}>admin@moveiq.co.kr</a>으로 직접 보내셔도 됩니다.
+                또는 <a href="mailto:zntk660202@gmail.com" style={{ color: '#646F4B', fontWeight: 600 }}>zntk660202@gmail.com</a>으로 직접 보내셔도 됩니다.
               </span>
               <button
                 type="submit"
@@ -949,5 +952,162 @@ function FeedbackBox() {
         </>
       )}
     </div>
+  );
+}
+
+// ── B2B 문의 섹션 컴포넌트 ──────────────────────────────────
+function B2BInquirySection() {
+  const [form, setForm] = useState({
+    company_name: '', service_type: '', contact_name: '',
+    contact_phone: '', contact_email: '', message: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [sent,    setSent]    = useState(false);
+  const [errMsg,  setErrMsg]  = useState('');
+
+  const SERVICE_OPTIONS = [
+    { value: 'api_integration',  label: 'API 연동 (직방·다방 등 부동산 플랫폼)' },
+    { value: 'white_label',      label: '화이트레이블' },
+    { value: 'data_partnership', label: '데이터 파트너십' },
+    { value: 'government',       label: '지자체·공공기관' },
+    { value: 'media',            label: '부동산 미디어·크리에이터' },
+    { value: 'other',            label: '기타' },
+  ];
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setErrMsg('');
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setErrMsg('');
+    try {
+      const res  = await fetch('/api/b2b-inquiry', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const json = await res.json();
+      if (json.success) setSent(true);
+      else setErrMsg(json.message ?? '문의 접수에 실패했습니다. 다시 시도해주세요.');
+    } catch {
+      setErrMsg('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const inputSt: React.CSSProperties = {
+    width: '100%', padding: '11px 14px', border: '1.5px solid rgba(255,255,255,.2)',
+    borderRadius: 10, fontSize: 14, background: 'rgba(255,255,255,.08)', color: '#fff',
+    fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none',
+    transition: 'border-color .15s',
+  };
+  const labelSt: React.CSSProperties = {
+    fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.7)', marginBottom: 6, display: 'block',
+  };
+
+  return (
+    <section style={{ background: 'linear-gradient(135deg,#1a1e15,#2d3424)', padding: '80px 24px' }}>
+      <div style={{ maxWidth: 760, margin: '0 auto' }}>
+        {/* 헤더 */}
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <div style={{ display: 'inline-block', background: 'rgba(100,111,75,.3)', border: '1px solid rgba(100,111,75,.4)', borderRadius: 100, padding: '6px 18px', fontSize: 12, fontWeight: 700, color: '#a3b899', marginBottom: 16 }}>
+            B2B PARTNERSHIP
+          </div>
+          <h2 style={{ fontSize: 32, fontWeight: 900, color: '#fff', margin: '0 0 14px', letterSpacing: '-0.5px' }}>
+            비즈니스 파트너십 문의
+          </h2>
+          <p style={{ fontSize: 15, color: 'rgba(255,255,255,.6)', lineHeight: 1.7, margin: 0 }}>
+            소음 데이터 API, 화이트레이블, 지자체 대시보드까지<br />
+            귀사의 서비스에 맞는 맞춤 파트너십을 제안합니다.
+          </p>
+        </div>
+
+        {/* 파트너 유형 칩 */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 48 }}>
+          {[
+            { icon: '🏢', label: '부동산 플랫폼 API' },
+            { icon: '🏛️', label: '지자체·공공기관' },
+            { icon: '📊', label: '데이터 파트너십' },
+            { icon: '🎨', label: '화이트레이블' },
+          ].map(({ icon, label }) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 100, padding: '8px 16px', fontSize: 13, color: 'rgba(255,255,255,.8)' }}>
+              <span>{icon}</span><span>{label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* 폼 / 완료 */}
+        {sent ? (
+          <div style={{ textAlign: 'center', padding: '48px 24px', background: 'rgba(255,255,255,.06)', borderRadius: 16, border: '1px solid rgba(255,255,255,.12)' }}>
+            <div style={{ fontSize: 52, marginBottom: 16 }}>✅</div>
+            <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 0 12px' }}>문의가 접수되었습니다!</h3>
+            <p style={{ fontSize: 15, color: 'rgba(255,255,255,.6)', lineHeight: 1.7, margin: 0 }}>
+              영업일 1~2일 내 담당자가 연락드리겠습니다.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 16, padding: 32 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              {/* 회사명 */}
+              <div>
+                <label style={labelSt}>회사명 *</label>
+                <input name="company_name" value={form.company_name} onChange={handleChange} required style={inputSt} placeholder="(주)무브컴퍼니" />
+              </div>
+              {/* 서비스 유형 */}
+              <div>
+                <label style={labelSt}>서비스 유형 *</label>
+                <select name="service_type" value={form.service_type} onChange={handleChange} required style={{ ...inputSt, cursor: 'pointer' }}>
+                  <option value="" style={{ background: '#2d3424' }}>선택해주세요</option>
+                  {SERVICE_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value} style={{ background: '#2d3424' }}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              {/* 담당자명 */}
+              <div>
+                <label style={labelSt}>담당자 성함 *</label>
+                <input name="contact_name" value={form.contact_name} onChange={handleChange} required style={inputSt} placeholder="홍길동" />
+              </div>
+              {/* 연락처 */}
+              <div>
+                <label style={labelSt}>연락처 *</label>
+                <input name="contact_phone" value={form.contact_phone} onChange={handleChange} required style={inputSt} placeholder="010-1234-5678" />
+              </div>
+            </div>
+            {/* 이메일 */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelSt}>이메일 *</label>
+              <input type="email" name="contact_email" value={form.contact_email} onChange={handleChange} required style={inputSt} placeholder="contact@company.com" />
+            </div>
+            {/* 문의 내용 */}
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelSt}>문의 내용 *</label>
+              <textarea
+                name="message" value={form.message} onChange={handleChange} required
+                rows={5} maxLength={2000}
+                style={{ ...inputSt, resize: 'vertical', lineHeight: 1.6 }}
+                placeholder="파트너십 목적, 예상 규모, 원하는 기능 등을 자유롭게 작성해주세요."
+              />
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', textAlign: 'right', marginTop: 4 }}>{form.message.length}/2000</div>
+            </div>
+            {errMsg && (
+              <p style={{ fontSize: 13, color: '#f87171', marginBottom: 16 }}>{errMsg}</p>
+            )}
+            <button
+              type="submit" disabled={loading}
+              style={{
+                width: '100%', padding: '14px 24px', background: '#646F4B', color: '#fff',
+                border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.6 : 1, transition: 'all .2s', fontFamily: 'inherit',
+              }}
+            >
+              {loading ? '전송 중...' : '문의 보내기 →'}
+            </button>
+          </form>
+        )}
+      </div>
+    </section>
   );
 }

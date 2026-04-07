@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           from:    'noreply@moveiq.co.kr',
-          to:      ['admin@moveiq.co.kr'],
+          to:      ['zntk660202@gmail.com'],
           subject: `[무브IQ 불편사항] ${type}`,
           text:    emailBody,
         }),
