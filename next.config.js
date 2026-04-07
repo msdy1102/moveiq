@@ -31,17 +31,17 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // 네이버 지도 SDK + 히트맵 등 submodule + 카카오 SDK
-              "script-src 'self' https://oapi.map.naver.com https://openapi.map.naver.com https://ssl.pstatic.net https://nid.naver.com https://developers.kakao.com https://t1.kakaocdn.net 'unsafe-inline' 'unsafe-eval'",
-              // CSS-in-JS 인라인 스타일 허용
-              "style-src 'self' 'unsafe-inline' https://ssl.pstatic.net",
-              // 네이버 지도 타일 + 마커 이미지 + Supabase Storage
-              "img-src 'self' data: blob: https://*.supabase.co https://ssl.pstatic.net https://*.map.naver.net https://map.pstatic.net https://ldb.pstatic.net https://naver-map.pstatic.net https://t1.kakaocdn.net",
-              // 웹폰트
-              "font-src 'self' data: https://ssl.pstatic.net",
-              // XHR/fetch — 네이버 지도 API + OSM + Supabase + Resend
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://oapi.map.naver.com https://openapi.map.naver.com https://naveropenapi.apigw.ntruss.com https://map.naver.com https://overpass-api.de https://overpass.openstreetmap.ru https://api.resend.com https://api.tosspayments.com",
-              // 네이버 지도가 Worker 사용
+              // 네이버 지도 SDK (nrbe = 지도 타일 스크립트 포함) + 카카오 SDK + Pretendard CDN
+              "script-src 'self' https://oapi.map.naver.com https://openapi.map.naver.com https://ssl.pstatic.net https://nrbe.pstatic.net https://nid.naver.com https://developers.kakao.com https://t1.kakaocdn.net https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'",
+              // Pretendard CSS (jsdelivr) + 네이버 지도 인라인 스타일
+              "style-src 'self' 'unsafe-inline' https://ssl.pstatic.net https://cdn.jsdelivr.net",
+              // 네이버 지도 타일 (nrbe.pstatic.net) + 구글 프로필 사진 + Supabase Storage
+              "img-src 'self' data: blob: https://*.supabase.co https://ssl.pstatic.net https://nrbe.pstatic.net https://*.map.naver.net https://map.pstatic.net https://ldb.pstatic.net https://naver-map.pstatic.net https://lh3.googleusercontent.com https://t1.kakaocdn.net",
+              // 웹폰트 (jsdelivr Pretendard woff2 포함)
+              "font-src 'self' data: https://ssl.pstatic.net https://cdn.jsdelivr.net",
+              // 네이버 지도 내부 로깅 + XHR/fetch 전체
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://oapi.map.naver.com https://openapi.map.naver.com https://naveropenapi.apigw.ntruss.com https://map.naver.com https://kr-col-ext.nelo.navercorp.com https://overpass-api.de https://overpass.openstreetmap.ru https://api.resend.com https://api.tosspayments.com",
+              // 네이버 지도 Web Worker
               "worker-src 'self' blob:",
               "frame-src 'none'",
               "object-src 'none'",
