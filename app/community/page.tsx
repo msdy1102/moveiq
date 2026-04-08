@@ -199,6 +199,13 @@ function PostDetailModal({
   const [comment,    setComment]    = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deleting,   setDeleting]   = useState<string | null>(null);
+  // 신고 상태
+  const [flagOpen,     setFlagOpen]     = useState(false);
+  const [flagType,     setFlagType]     = useState<'post'|'comment'>('post');
+  const [flagTargetId, setFlagTargetId] = useState('');
+  const [flagReason,   setFlagReason]   = useState('fake');
+  const [flagLoading,  setFlagLoading]  = useState(false);
+  const [flagResult,   setFlagResult]   = useState<'ok'|'dup'|null>(null);
 
   useEffect(() => {
     fetch(`/api/community/posts/${postId}?session_id=${encodeURIComponent(sessionId)}`)
@@ -261,6 +268,35 @@ function PostDetailModal({
     } catch {} finally { setSubmitting(false); }
   }
 
+  // 신고 처리
+  async function handleFlag() {
+    setFlagLoading(true);
+    try {
+      const res = await fetch('/api/community/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_type: flagType, target_id: flagTargetId, reason: flagReason, user_id: userId }),
+      });
+      const json = await res.json();
+      if (json.already_reported) setFlagResult('dup');
+      else setFlagResult('ok');
+      // 블라인드된 경우 게시글/댓글 숨기기
+      if (json.blinded) {
+        if (flagType === 'post') onClose();
+        else setPost(p => p ? { ...p, comments: p.comments.filter(c => c.id !== flagTargetId) } : p);
+      }
+    } catch { alert('신고 처리 중 오류가 발생했습니다.'); }
+    finally { setFlagLoading(false); }
+  }
+
+  function openFlag(type: 'post'|'comment', id: string) {
+    setFlagType(type);
+    setFlagTargetId(id);
+    setFlagReason('fake');
+    setFlagResult(null);
+    setFlagOpen(true);
+  }
+
   async function handleDeleteComment(commentId: string) {
     if (!confirm('댓글을 삭제하시겠어요?')) return;
     setDeleting(commentId);
@@ -306,6 +342,9 @@ function PostDetailModal({
                 {post.is_mine && (
                   <button className={styles.btnDelete} onClick={handleDeletePost}>삭제</button>
                 )}
+                {!post.is_mine && (
+                  <button className={styles.btnFlag} onClick={() => openFlag('post', post.id)}>🚩 신고</button>
+                )}
               </div>
             </div>
 
@@ -344,7 +383,7 @@ function PostDetailModal({
                           {c.nickname}
                         </span>
                         <span className={styles.commentDate}>{timeAgo(c.created_at)}</span>
-                        {c.is_mine && (
+                        {c.is_mine ? (
                           <button
                             className={styles.btnDeleteComment}
                             onClick={() => handleDeleteComment(c.id)}
@@ -352,6 +391,8 @@ function PostDetailModal({
                           >
                             {deleting === c.id ? '...' : '삭제'}
                           </button>
+                        ) : (
+                          <button className={styles.btnFlag} style={{ fontSize: 10 }} onClick={() => openFlag('comment', c.id)}>🚩</button>
                         )}
                       </div>
                       <p className={styles.commentContent}>{c.content}</p>
@@ -387,6 +428,59 @@ function PostDetailModal({
           </div>
         )}
       </div>
+
+      {/* 신고 모달 */}
+      {flagOpen && (
+        <div className={styles.modalBg} style={{ zIndex: 1100 }} onClick={e => { if (e.target === e.currentTarget) { setFlagOpen(false); setFlagResult(null); } }}>
+          <div className={styles.modal} style={{ maxWidth: 360 }}>
+            <div className={styles.modalHead}>
+              <h3>🚩 {flagType === 'post' ? '게시글' : '댓글'} 신고</h3>
+              <button className={styles.modalClose} onClick={() => { setFlagOpen(false); setFlagResult(null); }}>✕</button>
+            </div>
+            {flagResult === 'ok' ? (
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+                <p style={{ fontWeight: 700, marginBottom: 8 }}>신고 접수 완료</p>
+                <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.6 }}>검토 후 처리됩니다.<br/>3건 누적 시 자동 블라인드 처리됩니다.</p>
+                <button className={styles.btnSubmitComment} onClick={() => { setFlagOpen(false); setFlagResult(null); }}>닫기</button>
+              </div>
+            ) : flagResult === 'dup' ? (
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>ℹ️</div>
+                <p style={{ fontWeight: 700, marginBottom: 8 }}>이미 신고한 콘텐츠입니다</p>
+                <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>동일 콘텐츠에 중복 신고는 불가합니다.</p>
+                <button className={styles.btnSubmitComment} onClick={() => { setFlagOpen(false); setFlagResult(null); }}>닫기</button>
+              </div>
+            ) : (
+              <>
+                <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.6 }}>
+                  허위·부적절한 콘텐츠를 신고해주세요.<br/>
+                  <strong>3건 누적 시 자동 블라인드</strong> 처리됩니다.
+                </p>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>신고 사유</label>
+                  <select value={flagReason} onChange={e => setFlagReason(e.target.value)} className={styles.formInput}>
+                    <option value="fake">허위 정보 / 사실과 다름</option>
+                    <option value="spam">도배 / 스팸</option>
+                    <option value="inappropriate">부적절한 내용</option>
+                    <option value="defamation">명예훼손 / 비방</option>
+                    <option value="duplicate">중복 게시</option>
+                    <option value="other">기타</option>
+                  </select>
+                </div>
+                <button
+                  className={styles.btnSubmitComment}
+                  style={{ width: '100%', marginTop: 12 }}
+                  onClick={handleFlag}
+                  disabled={flagLoading}
+                >
+                  {flagLoading ? '처리 중...' : '신고하기'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

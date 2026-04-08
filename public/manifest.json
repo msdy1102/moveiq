@@ -1,0 +1,87 @@
+{
+  "name": "무브IQ — 이사 전, 이것만 보면 끝",
+  "short_name": "무브IQ",
+  "description": "소음 크라우드 지도 × AI 입지 분석으로 이사 후회를 없앱니다",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7faf5",
+  "theme_color": "#646F4B",
+  "orientation": "portrait-primary",
+  "lang": "ko",
+  "categories": ["real-estate", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "소음 지도 보기",
+      "short_name": "소음 지도",
+      "description": "현재 위치 소음 현황 확인",
+      "url": "/noise-map",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "AI 입지 분석",
+      "short_name": "입지 분석",
+      "description": "주소 입력으로 입지 점수 분석",
+      "url": "/analysis",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/noise-map.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "소음 지도 화면"
+    }
+  ]
+}

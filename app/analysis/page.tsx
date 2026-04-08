@@ -20,6 +20,13 @@ interface AnalysisResult {
   school_info?:{ name:string; type:string; distance:string; rating:string; note:string }[];
 }
 
+// 지역 비교 아이템
+interface CompareItem {
+  address: string;
+  result:  AnalysisResult | null;
+  loading: boolean;
+}
+
 // 커뮤니티에서 가져오는 거주 후기
 interface CommunityReview {
   id:          string;
@@ -85,6 +92,79 @@ const PLAN_LABEL: Record<string, { label:string; color:string; bg:string }> = {
   premium:  { label:'프리미엄',      color:'#646F4B', bg:'rgba(100,111,75,.1)' },
   guest:    { label:'비로그인',       color:'#a4ad98', bg:'#f5f5f5' },
 };
+
+// ── 레이더 차트 SVG 컴포넌트 ────────────────────────────────────
+const RADAR_LABELS = ['교통', '인프라', '학군', '소음', '상권', '개발'];
+const RADAR_COLORS = ['#646F4B', '#2563EB', '#e0a84b', '#e74c3c', '#8b5cf6'];
+
+function RadarChart({ current, compares }: {
+  current:  AnalysisResult;
+  compares: { address: string; result: AnalysisResult }[];
+}) {
+  const CX = 160, CY = 160, R = 110;
+  const N  = 6;
+  const all = [
+    { label: current.address.slice(0, 6), scores: Object.values(current.scores), color: RADAR_COLORS[0] },
+    ...compares.map((c, i) => ({
+      label:  c.address.slice(0, 6),
+      scores: Object.values(c.result.scores),
+      color:  RADAR_COLORS[i + 1] ?? '#999',
+    })),
+  ];
+
+  function polar(i: number, r: number): [number, number] {
+    const angle = (Math.PI * 2 * i) / N - Math.PI / 2;
+    return [CX + r * Math.cos(angle), CY + r * Math.sin(angle)];
+  }
+
+  function scoreToR(score: number) { return (score / 100) * R; }
+
+  return (
+    <svg width="320" height="320" viewBox="0 0 320 320" style={{ maxWidth: '100%' }}>
+      {/* 배경 그리드 */}
+      {[20, 40, 60, 80, 100].map(pct => {
+        const r = scoreToR(pct);
+        const pts = Array.from({ length: N }, (_, i) => polar(i, r).join(',')).join(' ');
+        return <polygon key={pct} points={pts} fill="none" stroke="var(--border)" strokeWidth="1" />;
+      })}
+      {/* 축선 */}
+      {Array.from({ length: N }, (_, i) => {
+        const [x, y] = polar(i, R);
+        return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="var(--border)" strokeWidth="1" />;
+      })}
+      {/* 레이블 */}
+      {RADAR_LABELS.map((label, i) => {
+        const [x, y] = polar(i, R + 20);
+        return (
+          <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
+            fontSize="11" fontWeight="600" fill="var(--muted)" fontFamily="'Pretendard', sans-serif">
+            {label}
+          </text>
+        );
+      })}
+      {/* 데이터 폴리곤 */}
+      {all.map(({ scores, color }, di) => {
+        const pts = scores.map((s, i) => polar(i, scoreToR(s)).join(',')).join(' ');
+        return (
+          <g key={di}>
+            <polygon points={pts} fill={color} fillOpacity={di === 0 ? 0.15 : 0.08} stroke={color} strokeWidth={di === 0 ? 2.5 : 1.5} strokeLinejoin="round" />
+            {scores.map((s, i) => {
+              const [x, y] = polar(i, scoreToR(s));
+              return <circle key={i} cx={x} cy={y} r={di === 0 ? 4 : 3} fill={color} />;
+            })}
+          </g>
+        );
+      })}
+      {/* 범례 */}
+      {all.map(({ label, color }, i) => (
+        <g key={i} transform={`translate(10,${i * 18 + 280})`}>
+          <rect width="10" height="10" fill={color} rx="2" />
+          <text x="14" y="9" fontSize="10" fill="var(--text2)" fontFamily="'Pretendard', sans-serif">{label}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
 
 // ── 업그레이드 모달 ────────────────────────────────────────────
 function UpgradeModal({ onClose, plan, reason }: {
@@ -164,6 +244,12 @@ function AnalysisContent() {
   const [jeonseRisk,     setJeonseRisk]     = useState<JeonseRisk | null>(null);
   const [jeonseLoading,  setJeonseLoading]  = useState(false);
   const [jeonseError,    setJeonseError]    = useState('');
+
+  // ── 지역 비교 상태 ─────────────────────────────────────────
+  const [compareMode,  setCompareMode]  = useState(false);
+  const [compareItems, setCompareItems] = useState<CompareItem[]>([]);
+  const [compareInput, setCompareInput] = useState('');
+  const [compareFull,  setCompareFull]  = useState(false); // 5곳 제한 안내
 
   const [sessionId] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
@@ -305,6 +391,57 @@ function AnalysisContent() {
     }
   }
 
+  // ── 지역 비교 ──────────────────────────────────────────────
+  // 현재 분석 결과를 비교 목록에 추가
+  function addCurrentToCompare() {
+    if (!result) return;
+    if (compareItems.length >= 4) { setCompareFull(true); return; }
+    if (compareItems.some(c => c.address === result.address)) return;
+    setCompareItems(prev => [...prev, { address: result.address, result, loading: false }]);
+    setCompareMode(true);
+    setCompareFull(false);
+  }
+
+  function removeCompareItem(address: string) {
+    setCompareItems(prev => prev.filter(c => c.address !== address));
+    if (compareItems.length <= 1) setCompareMode(false);
+  }
+
+  // 비교 목록에 새 주소 추가하여 분석 실행
+  async function addAndAnalyzeCompare() {
+    const addr = compareInput.trim();
+    if (!addr) return;
+    // 이미 포함된 주소 체크
+    if (compareItems.some(c => c.address === addr) || addr === result?.address) {
+      setCompareInput('');
+      return;
+    }
+    // 최대 5곳 (현재 분석 1 + 비교 4)
+    if (compareItems.length >= 4) { setCompareFull(true); return; }
+
+    const newItem: CompareItem = { address: addr, result: null, loading: true };
+    setCompareItems(prev => [...prev, newItem]);
+    setCompareInput('');
+    setCompareMode(true);
+
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: addr, session_id: sessionId, user_id: user?.id }),
+      });
+      const json = await res.json();
+      setCompareItems(prev => prev.map(c =>
+        c.address === addr
+          ? { ...c, loading: false, result: json.success ? json.data : null }
+          : c
+      ));
+    } catch {
+      setCompareItems(prev => prev.map(c =>
+        c.address === addr ? { ...c, loading: false } : c
+      ));
+    }
+  }
+
   async function runAnalysis(addr?: string) {
     const address = addr ?? input.trim();
     if (!address) return;
@@ -359,6 +496,7 @@ function AnalysisContent() {
     ['overview','종합'],['noise','소음★'],['school','학군★'],
     ['traffic','교통'],['infra','인프라'],['commerce','상권'],
     ['dev','개발'],['review','후기'],['jeonse','전세 위험'],
+    ['compare', compareItems.length > 0 ? `비교 (${compareItems.length + 1})` : '지역 비교'],
   ];
 
   // PDF 저장 가능 여부: one_time 또는 premium 플랜
@@ -383,6 +521,16 @@ function AnalysisContent() {
                 <strong style={{ color: quota.remaining === 0 ? '#e74c3c' : 'var(--main)' }}>
                   {quota.remaining}/{quota.daily_limit}회
                 </strong>
+                {quota.remaining === 0 && (
+                  <span style={{ fontSize: 11, color: '#e74c3c', marginLeft: 6 }}>
+                    — 내일 자정 초기화
+                  </span>
+                )}
+                {quota.remaining > 0 && quota.remaining <= 1 && (
+                  <span style={{ fontSize: 11, color: '#e0a84b', marginLeft: 6 }}>
+                    ⚠️ 1회 남음
+                  </span>
+                )}
               </span>
             )}
             {quota.plan === 'one_time' && (
@@ -791,6 +939,186 @@ function AnalysisContent() {
                   <p>주소를 입력하면 전세사기 위험도를 AI로 분석합니다.</p>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ 지역 비교 탭 ══ */}
+      {rTab === 'compare' && (
+        <div>
+          {/* 비교 지역 입력 */}
+          <div style={{ background: 'var(--sub-light)', border: '1px solid var(--sub-mid)', borderRadius: 14, padding: '16px 18px', marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--main)', marginBottom: 10 }}>
+              📍 비교할 지역 추가 <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--muted)' }}>(최대 5곳 동시 비교)</span>
+            </div>
+
+            {/* 현재 분석 지역 칩 */}
+            {result && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                <span style={{ background: 'var(--main)', color: '#fff', fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20 }}>
+                  ⭐ {result.address.slice(0, 16)} <span style={{ opacity: .7 }}>{result.total}점</span>
+                </span>
+                {compareItems.map(c => (
+                  <span key={c.address} style={{ background: '#fff', border: '1.5px solid var(--border)', fontSize: 12, padding: '4px 10px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {c.loading ? '⏳' : `📍 ${c.address.slice(0, 12)} ${c.result ? c.result.total + '점' : '실패'}`}
+                    <button onClick={() => removeCompareItem(c.address)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: 0, fontSize: 12 }}>✕</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {compareFull && (
+              <p style={{ fontSize: 12, color: '#e74c3c', marginBottom: 8 }}>⚠️ 최대 5곳까지 비교 가능합니다.</p>
+            )}
+
+            {!result ? (
+              <p style={{ fontSize: 13, color: 'var(--muted)' }}>먼저 위에서 주소를 분석해주세요.</p>
+            ) : compareItems.length < 4 ? (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={compareInput}
+                  onChange={e => setCompareInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addAndAnalyzeCompare()}
+                  placeholder="예: 강남구 역삼동, 마포구 합정동"
+                  style={{ flex: 1, padding: '10px 14px', background: '#fff', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, outline: 'none', minWidth: 0 }}
+                />
+                <button
+                  onClick={addAndAnalyzeCompare}
+                  style={{ padding: '10px 16px', background: 'var(--main)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+                >
+                  + 추가
+                </button>
+              </div>
+            ) : (
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>최대 비교 지역에 도달했습니다.</p>
+            )}
+
+            {result && compareItems.length === 0 && (
+              <button
+                onClick={addCurrentToCompare}
+                style={{ marginTop: 10, fontSize: 12, color: 'var(--main)', background: 'none', border: '1px dashed var(--sub-mid)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}
+              >
+                + 현재 분석({result.address.slice(0, 10)})을 비교에 추가
+              </button>
+            )}
+          </div>
+
+          {/* 비교 테이블 */}
+          {result && compareItems.length > 0 && (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 12 }}>📊 점수 비교표</div>
+              <div style={{ overflowX: 'auto', marginBottom: 24 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--sub-light)' }}>
+                      <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--main)', borderBottom: '2px solid var(--sub-mid)', whiteSpace: 'nowrap' }}>항목</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: 'var(--main)', borderBottom: '2px solid var(--sub-mid)', whiteSpace: 'nowrap', background: 'rgba(100,111,75,.08)' }}>
+                        ⭐ {result.address.slice(0, 8)}
+                      </th>
+                      {compareItems.map(c => (
+                        <th key={c.address} style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--sub-mid)', whiteSpace: 'nowrap' }}>
+                          {c.loading ? '⏳' : c.address.slice(0, 8)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { label: '🏆 종합 점수', key: 'total' as const },
+                      { label: '🚇 교통 접근성', key: 'traffic' as const },
+                      { label: '🏪 생활 인프라', key: 'infra' as const },
+                      { label: '📚 학군 환경', key: 'school' as const },
+                      { label: '🔊 소음·환경', key: 'noise' as const },
+                      { label: '🛍️ 상권 활성도', key: 'commerce' as const },
+                      { label: '🏗️ 개발 잠재력', key: 'development' as const },
+                    ].map((row, ri) => {
+                      const mainVal = row.key === 'total' ? result.total : result.scores[row.key as keyof typeof result.scores];
+                      const allVals = [mainVal, ...compareItems.map(c => c.result ? (row.key === 'total' ? c.result.total : c.result.scores[row.key as keyof typeof c.result.scores]) : null)];
+                      const maxVal  = Math.max(...allVals.filter(v => v !== null) as number[]);
+
+                      return (
+                        <tr key={row.key} style={{ background: ri % 2 === 0 ? '#fff' : 'var(--bg2)', borderBottom: '1px solid var(--border2)' }}>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text2)', whiteSpace: 'nowrap' }}>{row.label}</td>
+                          {/* 현재 분석 지역 */}
+                          <td style={{ padding: '10px 14px', textAlign: 'center', background: 'rgba(100,111,75,.04)' }}>
+                            <span style={{
+                              fontWeight: mainVal === maxVal ? 800 : 600,
+                              color: mainVal === maxVal ? 'var(--main)' : row.key === 'total' ? 'var(--text)' : sc(mainVal as number),
+                              fontSize: mainVal === maxVal ? 15 : 13,
+                            }}>
+                              {mainVal}{row.key !== 'total' && '점'}
+                              {mainVal === maxVal && ' 🥇'}
+                            </span>
+                          </td>
+                          {/* 비교 지역들 */}
+                          {compareItems.map(c => {
+                            const val = c.result ? (row.key === 'total' ? c.result.total : c.result.scores[row.key as keyof typeof c.result.scores]) : null;
+                            return (
+                              <td key={c.address} style={{ padding: '10px 14px', textAlign: 'center' }}>
+                                {c.loading ? (
+                                  <span style={{ color: 'var(--muted2)', fontSize: 12 }}>분석 중...</span>
+                                ) : val !== null ? (
+                                  <span style={{
+                                    fontWeight: val === maxVal ? 800 : 500,
+                                    color: val === maxVal ? 'var(--main)' : 'var(--text2)',
+                                    fontSize: val === maxVal ? 15 : 13,
+                                  }}>
+                                    {val}{row.key !== 'total' && '점'}
+                                    {val === maxVal && ' 🥇'}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: 'var(--muted2)', fontSize: 11 }}>실패</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 레이더 차트 (SVG) */}
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--muted)', marginBottom: 12 }}>🕸️ 레이더 차트</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+                <RadarChart
+                  current={result}
+                  compares={compareItems.filter(c => c.result !== null) as (CompareItem & { result: AnalysisResult })[]}
+                />
+              </div>
+
+              {/* AI 총평 */}
+              <div style={{ background: 'var(--sub-light)', border: '1px solid var(--sub-mid)', borderRadius: 12, padding: '14px 16px' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--main)', marginBottom: 8 }}>🤖 비교 총평</div>
+                {(() => {
+                  const allItems = [
+                    { address: result.address, total: result.total },
+                    ...compareItems.filter(c => c.result).map(c => ({ address: c.address, total: c.result!.total })),
+                  ].sort((a, b) => b.total - a.total);
+                  const best = allItems[0];
+                  return (
+                    <p style={{ fontSize: 13, lineHeight: 1.8, color: 'var(--text2)' }}>
+                      비교한 {allItems.length}개 지역 중 <strong style={{ color: 'var(--main)' }}>{best.address}</strong>이(가) 종합 <strong>{best.total}점</strong>으로 가장 높은 점수를 기록했습니다.
+                      {allItems.length > 1 && ` 2위는 ${allItems[1].address}(${allItems[1].total}점)입니다.`}
+                      {' '}각 지역의 강점과 약점을 위 표에서 항목별로 확인하세요.
+                    </p>
+                  );
+                })()}
+              </div>
+            </>
+          )}
+
+          {/* 비교 지역 없을 때 안내 */}
+          {(!result || compareItems.length === 0) && (
+            <div className={styles.noData}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>
+              <p style={{ fontWeight: 600, marginBottom: 8 }}>지역 비교 기능</p>
+              <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
+                최대 5곳의 주소를 동시에 비교합니다.<br/>
+                점수 비교표 + 레이더 차트로 한눈에 확인하세요.
+              </p>
             </div>
           )}
         </div>

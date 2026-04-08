@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Script from 'next/script';
 
 const BASE_URL = 'https://moveiq.vercel.app';
 
@@ -59,12 +60,63 @@ export const metadata: Metadata = {
   verification: {
     google: 'YyzxirHYgaDQ4HWGPaDuTKkxYYp2xt5TbepQmla4m8c',
   },
+
+  // ── PWA ──────────────────────────────────────────────────
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '무브IQ',
+  },
+  formatDetection: { telephone: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <head>
+        {/* PWA theme-color */}
+        <meta name="theme-color" content="#646F4B" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#3d4a2e" />
+        {/* iOS PWA */}
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
+        <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="무브IQ" />
+        {/* MS Tile */}
+        <meta name="msapplication-TileColor" content="#646F4B" />
+        <meta name="msapplication-TileImage" content="/icons/icon-144.png" />
+      </head>
+      <body>
+        {children}
+
+        {/* Service Worker 등록 */}
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .then(function(reg) {
+                      reg.addEventListener('updatefound', function() {
+                        var nw = reg.installing;
+                        if (nw) nw.addEventListener('statechange', function() {
+                          if (nw.state === 'installed' && navigator.serviceWorker.controller)
+                            nw.postMessage({ type: 'SKIP_WAITING' });
+                        });
+                      });
+                    })
+                    .catch(function(e) { console.warn('SW 등록 실패:', e); });
+                });
+              }
+            `,
+          }}
+        />
+      </body>
     </html>
   );
 }

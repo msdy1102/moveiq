@@ -162,7 +162,21 @@ async function loadNoisePins(map: any, lat: number, lng: number, n: any, pinsRef
       const sz = 24 + r.severity * 2;
       const html = `<div style="background:${cfg.color};width:${sz}px;height:${sz}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;font-size:${sz * 0.42}px;box-shadow:0 2px 8px rgba(0,0,0,.2);border:2px solid rgba(255,255,255,.9);cursor:pointer;"><span style="transform:rotate(45deg)">${cfg.icon}</span></div>`;
       const marker = new n.maps.Marker({ map, position: new n.maps.LatLng(r.lat, r.lng), icon: { content: html, anchor: new n.maps.Point(sz / 2, sz) } });
-      const info = new n.maps.InfoWindow({ content: `<div style="padding:10px 14px;font-family:'Pretendard',sans-serif;min-width:140px;"><div style="font-weight:700;font-size:13px;margin-bottom:4px;">${cfg.icon} ${nLabel[r.noise_type] ?? '소음'}</div><div style="font-size:11px;color:#7a8570;">시간대: ${tLabel[r.time_slot] ?? ''}</div><div style="font-size:11px;color:#7a8570;">심각도: ${'★'.repeat(r.severity)}${'☆'.repeat(5 - r.severity)}</div><div style="font-size:10px;color:#aaa;margin-top:4px;">${new Date(r.created_at).toLocaleDateString('ko-KR')}</div></div>`, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(100,111,75,0.2)' });
+      const info = new n.maps.InfoWindow({
+        content: `
+          <div style="padding:10px 14px;font-family:'Pretendard',sans-serif;min-width:170px;">
+            <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${cfg.icon} ${nLabel[r.noise_type] ?? '소음'}</div>
+            <div style="font-size:11px;color:#7a8570;">시간대: ${tLabel[r.time_slot] ?? ''}</div>
+            <div style="font-size:11px;color:#7a8570;margin-bottom:4px;">심각도: ${'★'.repeat(r.severity)}${'☆'.repeat(5 - r.severity)}</div>
+            <div style="font-size:10px;color:#aaa;margin-bottom:8px;">${new Date(r.created_at).toLocaleDateString('ko-KR')}</div>
+            <button
+              style="font-size:10px;color:#c0392b;background:#fff5f5;border:1px solid #f5c6cb;border-radius:6px;padding:4px 8px;cursor:pointer;width:100%;text-align:left;"
+              onclick="window.__moveiq_reportNoise && window.__moveiq_reportNoise('${r.id}')"
+            >🚩 허위 제보 신고</button>
+          </div>
+        `,
+        borderRadius: 10, borderWidth: 1, borderColor: 'rgba(100,111,75,0.2)'
+      });
       n.maps.Event.addListener(marker, 'click', () => { if (info.getMap()) info.close(); else info.open(map, marker); });
       if (pinsRef?.current) pinsRef.current.push({ marker, noise_type: r.noise_type, time_slot: r.time_slot });
     });
@@ -186,6 +200,12 @@ export default function NoiseMapPage() {
   const [pinReloadKey, setPinReloadKey] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportOk, setReportOk]     = useState(false);
+  // 소음 제보 신고 상태
+  const [flagOpen,     setFlagOpen]     = useState(false);
+  const [flagTargetId, setFlagTargetId] = useState<string>('');
+  const [flagReason,   setFlagReason]   = useState('fake');
+  const [flagLoading,  setFlagLoading]  = useState(false);
+  const [flagResult,   setFlagResult]   = useState<'ok'|'dup'|null>(null);
   const [reportLat, setReportLat]   = useState<number | null>(null);
   const [reportLng, setReportLng]   = useState<number | null>(null);
   // 사진 첨부 상태
@@ -203,6 +223,17 @@ export default function NoiseMapPage() {
     localStorage.setItem('moveiq_session_id', id);
     return id;
   });
+
+  // 글로벌 신고 핸들러 등록 (NaverMap InfoWindow의 onclick에서 호출)
+  useEffect(() => {
+    (window as any).__moveiq_reportNoise = (id: string) => {
+      setFlagTargetId(id);
+      setFlagReason('fake');
+      setFlagResult(null);
+      setFlagOpen(true);
+    };
+    return () => { delete (window as any).__moveiq_reportNoise; };
+  }, []);
 
   useEffect(() => {
     // 알림 권한 상태 확인
@@ -317,6 +348,32 @@ export default function NoiseMapPage() {
     const reader = new FileReader();
     reader.onload = () => setPhotoPreview(reader.result as string);
     reader.readAsDataURL(file);
+  }
+
+  // 소음 제보 허위 신고 처리
+  async function submitNoiseFlag() {
+    if (!flagTargetId) return;
+    setFlagLoading(true);
+    try {
+      const res = await fetch('/api/noise-reports/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noise_report_id: flagTargetId, reason: flagReason }),
+      });
+      const json = await res.json();
+      if (json.already_reported) {
+        setFlagResult('dup');
+      } else {
+        setFlagResult('ok');
+        // 블라인드 처리된 경우 핀 리로드
+        if (json.blinded) setPinReloadKey(k => k + 1);
+      }
+    } catch {
+      setFlagResult(null);
+      alert('신고 처리 중 오류가 발생했습니다.');
+    } finally {
+      setFlagLoading(false);
+    }
   }
 
   async function submitReport(e: React.FormEvent<HTMLFormElement>) {
@@ -534,6 +591,62 @@ export default function NoiseMapPage() {
         <Link href="/analysis"  className={styles.mobileNavBtn}><span>🏙️</span>입지 분석</Link>
         <Link href="/community" className={styles.mobileNavBtn}><span>💬</span>커뮤니티</Link>
       </nav>
+
+      {/* 허위 제보 신고 모달 */}
+      {flagOpen && (
+        <div className={styles.modalBg} onClick={e => { if (e.target === e.currentTarget) { setFlagOpen(false); setFlagResult(null); } }}>
+          <div className={styles.modal} style={{ maxWidth: 360 }}>
+            <div className={styles.modalHead}>
+              <h3>🚩 허위 제보 신고</h3>
+              <button onClick={() => { setFlagOpen(false); setFlagResult(null); }}>✕</button>
+            </div>
+            {flagResult === 'ok' ? (
+              <div className={styles.successState}>
+                <div>✅</div>
+                <h3>신고 접수 완료</h3>
+                <p>검토 후 처리됩니다.<br/>3건 누적 시 자동으로 블라인드 처리됩니다.</p>
+                <button onClick={() => { setFlagOpen(false); setFlagResult(null); }} className={styles.btnSubmit}>닫기</button>
+              </div>
+            ) : flagResult === 'dup' ? (
+              <div className={styles.successState}>
+                <div>ℹ️</div>
+                <h3>이미 신고한 제보입니다</h3>
+                <p>동일 제보에 중복으로 신고할 수 없습니다.</p>
+                <button onClick={() => { setFlagOpen(false); setFlagResult(null); }} className={styles.btnSubmit}>닫기</button>
+              </div>
+            ) : (
+              <>
+                <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.6 }}>
+                  허위·어뷰징 제보를 신고해 주세요.<br/>
+                  <strong>3건 누적 시 자동으로 숨김 처리</strong>됩니다.
+                </p>
+                <div className={styles.formGroup}>
+                  <label>신고 사유</label>
+                  <select
+                    value={flagReason}
+                    onChange={e => setFlagReason(e.target.value)}
+                    className={styles.formInput}
+                  >
+                    <option value="fake">허위 정보 / 사실과 다름</option>
+                    <option value="spam">도배 / 스팸</option>
+                    <option value="inappropriate">부적절한 내용</option>
+                    <option value="duplicate">중복 제보</option>
+                    <option value="other">기타</option>
+                  </select>
+                </div>
+                <button
+                  className={styles.btnSubmit}
+                  onClick={submitNoiseFlag}
+                  disabled={flagLoading}
+                  style={{ marginTop: 8 }}
+                >
+                  {flagLoading ? '신고 처리 중...' : '신고하기'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 제보 모달 */}
       {reportOpen && (

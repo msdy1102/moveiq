@@ -491,3 +491,18 @@
   .modalBg { align-items: flex-end; padding: 0; }
   .modal { max-height: 85vh; border-radius: 20px 20px 0 0; }
 }
+
+/* ── 신고 버튼 ────────────────────────────────────────────── */
+.btnFlag {
+  background: none;
+  border: 1px solid #f5c6cb;
+  color: #c0392b;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btnFlag:hover { background: #fef5f5; }
