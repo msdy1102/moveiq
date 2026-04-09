@@ -508,7 +508,7 @@ export default function AdminPage() {
                       </span>
                       <span className={styles.rowPreview}>
                         {log.target_id ? `#${log.target_id.slice(0, 8)}...` : '—'}
-                        {log.detail?.note && ` · ${log.detail.note}`}
+                        {log.detail?.note != null && ` · ${String(log.detail.note)}`}
                       </span>
                     </div>
                     <div className={styles.rowRight}>
