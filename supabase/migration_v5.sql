@@ -26,7 +26,10 @@ CREATE INDEX IF NOT EXISTS idx_analysis_history_date    ON analysis_history(crea
 ALTER TABLE analysis_history ENABLE ROW LEVEL SECURITY;
 
 -- 자신의 히스토리만 조회
-CREATE POLICY IF NOT EXISTS "history_select_own"
+-- CREATE POLICY는 IF NOT EXISTS 미지원 → 기존 정책 삭제 후 재생성
+DROP POLICY IF EXISTS "history_select_own" ON analysis_history;
+
+CREATE POLICY "history_select_own"
   ON analysis_history FOR SELECT
   USING (user_id = auth.uid() OR session_id IS NOT NULL);
 

@@ -287,12 +287,12 @@ export default function AdminPage() {
           <span className={styles.logoSub}>어드민</span>
         </div>
         {([ 
-          { id: 'dashboard',   label: '대시보드',    dot: '#639922' },
-          { id: 'reports',     label: '신고 검토',   dot: '#E24B4A', badge: stats ? (stats.pending_reports + stats.auto_blinded) : 0 },
-          { id: 'noise',       label: '소음 제보',   dot: '#378ADD' },
-          { id: 'subscribers', label: '구독자 관리', dot: '#BA7517' },
-          { id: 'audit',       label: '감사 로그',   dot: '#7F77DD' },
-        ] as const).map(item => (
+          { id: 'dashboard',   label: '대시보드',    dot: '#639922',  badge: 0 },
+          { id: 'reports',     label: '신고 검토',   dot: '#E24B4A',  badge: stats ? (stats.pending_reports + stats.auto_blinded) : 0 },
+          { id: 'noise',       label: '소음 제보',   dot: '#378ADD',  badge: 0 },
+          { id: 'subscribers', label: '구독자 관리', dot: '#BA7517',  badge: 0 },
+          { id: 'audit',       label: '감사 로그',   dot: '#7F77DD',  badge: 0 },
+        ] as { id: Tab; label: string; dot: string; badge: number }[]).map(item => (
           <button
             key={item.id}
             className={`${styles.menuItem} ${tab === item.id ? styles.menuActive : ''}`}
