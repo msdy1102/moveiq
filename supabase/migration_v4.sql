@@ -17,8 +17,11 @@ ALTER TABLE noise_reports
   ADD COLUMN IF NOT EXISTS is_blinded   BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS photo_url    TEXT;
 
--- 공개 뷰에서 블라인드 처리된 제보 숨기기
-CREATE OR REPLACE VIEW noise_reports_public_view AS
+-- 공개 뷰 재생성: 블라인드 필터 + photo_url 추가
+-- CREATE OR REPLACE는 기존 컬럼 순서/이름 변경 불가 → DROP 후 재생성
+DROP VIEW IF EXISTS noise_reports_public_view;
+
+CREATE VIEW noise_reports_public_view WITH (security_invoker = true) AS
 SELECT
   id,
   noise_type,
@@ -107,7 +110,9 @@ CREATE TABLE IF NOT EXISTS admin_report_queue (
   reviewed_by   UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   reviewed_at   TIMESTAMPTZ,
   created_at    TIMESTAMPTZ DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ DEFAULT NOW()
+  updated_at    TIMESTAMPTZ DEFAULT NOW(),
+  -- 동일 대상 중복 큐 방지
+  UNIQUE(target_type, target_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_queue_status  ON admin_report_queue(status, created_at DESC);
@@ -140,12 +145,12 @@ BEGIN
     -- 어드민 큐에 등록 (중복 방지: 이미 있으면 count만 업데이트)
     INSERT INTO admin_report_queue(target_type, target_id, report_count, status)
       VALUES('noise_report', NEW.noise_report_id, v_count, 'auto_blinded')
-      ON CONFLICT DO NOTHING;
+      ON CONFLICT (target_type, target_id) DO NOTHING;
   ELSE
     -- 첫 신고 시 큐에 등록
     INSERT INTO admin_report_queue(target_type, target_id, report_count, status)
       VALUES('noise_report', NEW.noise_report_id, v_count, 'pending')
-      ON CONFLICT DO NOTHING;
+      ON CONFLICT (target_type, target_id) DO NOTHING;
   END IF;
 
   RETURN NEW;
@@ -174,11 +179,11 @@ BEGIN
       UPDATE community_posts SET is_blinded = TRUE WHERE id = NEW.target_id;
       INSERT INTO admin_report_queue(target_type, target_id, report_count, status)
         VALUES('community_post', NEW.target_id, v_count, 'auto_blinded')
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT (target_type, target_id) DO NOTHING;
     ELSE
       INSERT INTO admin_report_queue(target_type, target_id, report_count, status)
         VALUES('community_post', NEW.target_id, v_count, 'pending')
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT (target_type, target_id) DO NOTHING;
     END IF;
 
   ELSIF NEW.target_type = 'comment' THEN
@@ -190,11 +195,11 @@ BEGIN
       UPDATE community_comments SET is_blinded = TRUE WHERE id = NEW.target_id;
       INSERT INTO admin_report_queue(target_type, target_id, report_count, status)
         VALUES('community_comment', NEW.target_id, v_count, 'auto_blinded')
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT (target_type, target_id) DO NOTHING;
     ELSE
       INSERT INTO admin_report_queue(target_type, target_id, report_count, status)
         VALUES('community_comment', NEW.target_id, v_count, 'pending')
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT (target_type, target_id) DO NOTHING;
     END IF;
   END IF;
 
